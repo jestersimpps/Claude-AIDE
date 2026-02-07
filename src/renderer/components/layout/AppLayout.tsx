@@ -1,0 +1,41 @@
+import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels'
+import { ProjectSelector } from '@/components/sidebar/ProjectSelector'
+import { FileTree } from '@/components/sidebar/FileTree'
+import { TerminalPanel } from '@/components/terminal/TerminalPanel'
+import { BrowserPanel } from '@/components/browser/BrowserPanel'
+
+export function AppLayout(): React.ReactElement {
+  return (
+    <div className="flex h-screen flex-col bg-zinc-950 text-zinc-100">
+      <div className="flex h-10 items-center border-b border-zinc-800 bg-zinc-900/80 pl-20 pr-4"
+        style={{ WebkitAppRegion: 'drag' } as React.CSSProperties}
+      >
+        <span className="text-sm font-semibold text-zinc-400">VibeCoder</span>
+      </div>
+
+      <PanelGroup direction="horizontal" className="flex-1">
+        <Panel defaultSize={18} minSize={12} maxSize={30}>
+          <div className="flex h-full flex-col border-r border-zinc-800 bg-zinc-900/30">
+            <ProjectSelector />
+            <div className="border-t border-zinc-800" />
+            <div className="flex-1 overflow-y-auto">
+              <FileTree />
+            </div>
+          </div>
+        </Panel>
+
+        <PanelResizeHandle className="w-1 bg-zinc-800 hover:bg-zinc-700 transition-colors" />
+
+        <Panel defaultSize={52} minSize={20}>
+          <BrowserPanel />
+        </Panel>
+
+        <PanelResizeHandle className="w-1 bg-zinc-800 hover:bg-zinc-700 transition-colors" />
+
+        <Panel defaultSize={30} minSize={15}>
+          <TerminalPanel />
+        </Panel>
+      </PanelGroup>
+    </div>
+  )
+}

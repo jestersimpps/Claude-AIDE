@@ -1,0 +1,68 @@
+export interface Project {
+  id: string
+  name: string
+  path: string
+  lastOpened: number
+}
+
+export interface FileNode {
+  name: string
+  path: string
+  isDirectory: boolean
+  children?: FileNode[]
+}
+
+export interface TerminalTab {
+  id: string
+  title: string
+  projectId: string
+}
+
+export type DeviceMode = 'desktop' | 'ipad' | 'mobile'
+
+export interface DeviceConfig {
+  mode: DeviceMode
+  width: number
+  height: number
+  userAgent: string
+}
+
+export interface ConsoleEntry {
+  level: 'log' | 'warn' | 'error' | 'info'
+  message: string
+  timestamp: number
+}
+
+export interface NetworkEntry {
+  id: string
+  method: string
+  url: string
+  status: number
+  type: string
+  size: number
+  duration: number
+  timestamp: number
+}
+
+export const DEVICE_CONFIGS: Record<DeviceMode, DeviceConfig> = {
+  desktop: {
+    mode: 'desktop',
+    width: 1440,
+    height: 900,
+    userAgent: ''
+  },
+  ipad: {
+    mode: 'ipad',
+    width: 1024,
+    height: 1366,
+    userAgent:
+      'Mozilla/5.0 (iPad; CPU OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1'
+  },
+  mobile: {
+    mode: 'mobile',
+    width: 390,
+    height: 844,
+    userAgent:
+      'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1'
+  }
+}
