@@ -44,6 +44,21 @@ export interface NetworkEntry {
   timestamp: number
 }
 
+export interface GitCommit {
+  hash: string
+  shortHash: string
+  message: string
+  author: string
+  date: string
+  refs: string[]
+  parents: string[]
+}
+
+export interface GitBranch {
+  name: string
+  current: boolean
+}
+
 export const DEVICE_CONFIGS: Record<DeviceMode, DeviceConfig> = {
   desktop: {
     mode: 'desktop',

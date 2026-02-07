@@ -40,6 +40,12 @@ const api = {
     }
   },
 
+  git: {
+    isRepo: (cwd: string) => ipcRenderer.invoke('git:is-repo', cwd),
+    commits: (cwd: string, maxCount?: number) => ipcRenderer.invoke('git:commits', cwd, maxCount),
+    branches: (cwd: string) => ipcRenderer.invoke('git:branches', cwd)
+  },
+
   browser: {
     create: () => ipcRenderer.invoke('browser:create'),
     navigate: (url: string) => ipcRenderer.invoke('browser:navigate', url),

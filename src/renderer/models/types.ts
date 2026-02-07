@@ -37,3 +37,18 @@ export interface NetworkEntry {
   duration: number
   timestamp: number
 }
+
+export interface GitCommit {
+  hash: string
+  shortHash: string
+  message: string
+  author: string
+  date: string
+  refs: string[]
+  parents: string[]
+}
+
+export interface GitBranch {
+  name: string
+  current: boolean
+}

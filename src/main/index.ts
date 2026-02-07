@@ -4,6 +4,7 @@ import { registerProjectHandlers } from '@main/ipc/projects'
 import { registerFilesystemHandlers } from '@main/ipc/filesystem'
 import { registerTerminalHandlers } from '@main/ipc/terminal'
 import { registerBrowserHandlers } from '@main/ipc/browser'
+import { registerGitHandlers } from '@main/ipc/git'
 import { killAll } from '@main/services/pty-manager'
 import { stopWatching } from '@main/services/file-watcher'
 import { destroyView } from '@main/services/browser-view'
@@ -39,6 +40,7 @@ registerProjectHandlers()
 registerFilesystemHandlers()
 registerTerminalHandlers()
 registerBrowserHandlers()
+registerGitHandlers()
 
 app.whenReady().then(() => {
   createWindow()

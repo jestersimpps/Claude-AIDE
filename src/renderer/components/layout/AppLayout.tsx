@@ -3,6 +3,7 @@ import { ProjectSelector } from '@/components/sidebar/ProjectSelector'
 import { FileTree } from '@/components/sidebar/FileTree'
 import { TerminalPanel } from '@/components/terminal/TerminalPanel'
 import { BrowserPanel } from '@/components/browser/BrowserPanel'
+import { GitTree } from '@/components/git/GitTree'
 
 export function AppLayout(): React.ReactElement {
   return (
@@ -33,7 +34,15 @@ export function AppLayout(): React.ReactElement {
         <PanelResizeHandle className="w-1 bg-zinc-800 hover:bg-zinc-700 transition-colors" />
 
         <Panel defaultSize={30} minSize={15}>
-          <TerminalPanel />
+          <PanelGroup direction="vertical">
+            <Panel defaultSize={35} minSize={15}>
+              <GitTree />
+            </Panel>
+            <PanelResizeHandle className="h-1 bg-zinc-800 hover:bg-zinc-700 transition-colors" />
+            <Panel defaultSize={65} minSize={20}>
+              <TerminalPanel />
+            </Panel>
+          </PanelGroup>
         </Panel>
       </PanelGroup>
     </div>
