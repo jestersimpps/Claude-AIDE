@@ -1,13 +1,29 @@
-import { app, BrowserWindow } from 'electron'
+import { app, BrowserWindow, session } from 'electron'
 import path from 'path'
 import { registerProjectHandlers } from '@main/ipc/projects'
 import { registerFilesystemHandlers } from '@main/ipc/filesystem'
 import { registerTerminalHandlers } from '@main/ipc/terminal'
 import { registerBrowserHandlers } from '@main/ipc/browser'
 import { registerGitHandlers } from '@main/ipc/git'
+import { registerPasswordHandlers } from '@main/ipc/passwords'
 import { killAll } from '@main/services/pty-manager'
 import { stopWatching } from '@main/services/file-watcher'
 import { detachAllTabs } from '@main/services/browser-view'
+
+const ALLOWED_PERMISSIONS = new Set([
+  'clipboard-read',
+  'clipboard-sanitized-write',
+  'fullscreen',
+  'geolocation',
+  'media',
+  'mediaKeySystem',
+  'midi',
+  'notifications',
+  'pointerLock',
+  'window-management'
+])
+
+const configuredSessions = new WeakSet<Electron.Session>()
 
 let mainWindow: BrowserWindow | null = null
 
@@ -23,6 +39,13 @@ function createWindow(): void {
       preload: path.join(__dirname, '../preload/index.js'),
       sandbox: false,
       webviewTag: true
+    }
+  })
+
+  mainWindow.webContents.on('before-input-event', (_event, input) => {
+    if (input.type === 'keyDown' && input.key === 'r' && input.meta && !input.shift) {
+      _event.preventDefault()
+      mainWindow?.webContents.send('browser:reload')
     }
   })
 
@@ -42,9 +65,37 @@ registerFilesystemHandlers()
 registerTerminalHandlers()
 registerBrowserHandlers()
 registerGitHandlers()
+registerPasswordHandlers()
 
 app.whenReady().then(() => {
   createWindow()
+
+  app.on('web-contents-created', (_event, contents) => {
+    if (contents.getType() === 'webview') {
+      const ses = contents.session
+      if (!configuredSessions.has(ses)) {
+        configuredSessions.add(ses)
+        ses.setPermissionRequestHandler((_wc, permission, callback) => {
+          callback(ALLOWED_PERMISSIONS.has(permission))
+        })
+        ses.setPermissionCheckHandler((_wc, permission) => {
+          return ALLOWED_PERMISSIONS.has(permission)
+        })
+      }
+
+      contents.setWindowOpenHandler(({ url }) => {
+        contents.loadURL(url)
+        return { action: 'deny' }
+      })
+
+      contents.on('before-input-event', (_e, input) => {
+        if (input.type === 'keyDown' && input.key === 'r' && input.meta && !input.shift) {
+          _e.preventDefault()
+          mainWindow?.webContents.send('browser:reload')
+        }
+      })
+    }
+  })
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow()

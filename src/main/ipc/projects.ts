@@ -3,6 +3,8 @@ import Store from 'electron-store'
 import { v4 as uuid } from 'uuid'
 import path from 'path'
 import type { Project } from '@main/models/types'
+import { clearProjectTabs } from '@main/services/browser-persistence'
+import { clearProjectCredentials } from '@main/services/credential-store'
 
 const store = new Store<{ projects: Project[] }>({
   defaults: { projects: [] }
@@ -45,6 +47,8 @@ export function registerProjectHandlers(): void {
     const projects = store.get('projects')
     const filtered = projects.filter((p) => p.id !== id)
     store.set('projects', filtered)
+    clearProjectTabs(id)
+    clearProjectCredentials(id)
     return true
   })
 }

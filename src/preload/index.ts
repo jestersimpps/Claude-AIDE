@@ -61,12 +61,39 @@ const api = {
     setDevice: (tabId: string, mode: string) =>
       ipcRenderer.invoke('browser:set-device', tabId, mode),
     detach: (tabId: string) => ipcRenderer.invoke('browser:detach', tabId),
+    openDevTools: (webContentsId: number) =>
+      ipcRenderer.invoke('browser:open-devtools', webContentsId),
+    onReload: (callback: () => void) => {
+      const handler = () => callback()
+      ipcRenderer.on('browser:reload', handler)
+      return () => ipcRenderer.removeListener('browser:reload', handler)
+    },
     onNetwork: (callback: (tabId: string, entry: unknown) => void) => {
       const handler = (_event: Electron.IpcRendererEvent, tabId: string, entry: unknown) =>
         callback(tabId, entry)
       ipcRenderer.on('browser:network', handler)
       return () => ipcRenderer.removeListener('browser:network', handler)
-    }
+    },
+    loadTabs: (projectId: string) => ipcRenderer.invoke('browser:load-tabs', projectId),
+    saveTabs: (
+      projectId: string,
+      tabs: { id: string; url: string; deviceMode: string; title: string }[],
+      activeTabId: string
+    ) => ipcRenderer.invoke('browser:save-tabs', projectId, tabs, activeTabId)
+  },
+
+  passwords: {
+    save: (projectId: string, domain: string, username: string, password: string) =>
+      ipcRenderer.invoke('passwords:save', projectId, domain, username, password),
+    getForDomain: (projectId: string, domain: string) =>
+      ipcRenderer.invoke('passwords:get-for-domain', projectId, domain),
+    decrypt: (projectId: string, credentialId: string) =>
+      ipcRenderer.invoke('passwords:decrypt', projectId, credentialId),
+    list: (projectId: string) => ipcRenderer.invoke('passwords:list', projectId),
+    delete: (projectId: string, credentialId: string) =>
+      ipcRenderer.invoke('passwords:delete', projectId, credentialId),
+    update: (projectId: string, credentialId: string, username: string, password: string) =>
+      ipcRenderer.invoke('passwords:update', projectId, credentialId, username, password)
   }
 }
 

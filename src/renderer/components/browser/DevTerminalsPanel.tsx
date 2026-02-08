@@ -56,7 +56,9 @@ export function DevTerminalsPanel(): React.ReactElement {
     closeTab(tabId)
   }
 
-  if (!activeProject) {
+  const projectIds = [...new Set(tabs.map((t) => t.projectId))]
+
+  if (!activeProject && projectIds.length === 0) {
     return (
       <div className="flex h-full items-center justify-center text-xs text-zinc-600">
         Select a project first
@@ -64,56 +66,68 @@ export function DevTerminalsPanel(): React.ReactElement {
     )
   }
 
-  if (projectTabs.length === 0) {
-    return (
-      <div className="flex h-full items-center justify-center text-xs text-zinc-600">
-        Initializing terminals...
-      </div>
-    )
-  }
-
-  const layout = getGridLayout(projectTabs.length)
-  let tabIndex = 0
-
   return (
     <div className="flex h-full flex-col">
-      <div className="flex flex-1 flex-col" style={{ minHeight: 0 }}>
-        {layout.rows.map((colCount, rowIdx) => (
-          <div key={rowIdx} className="flex flex-1" style={{ minHeight: 0 }}>
-            {Array.from({ length: colCount }).map((_, colIdx) => {
-              const tab = projectTabs[tabIndex]
-              tabIndex++
-              if (!tab) return null
-              return (
-                <div
-                  key={tab.id}
-                  className="flex flex-1 flex-col"
-                  style={{
-                    minWidth: 0,
-                    minHeight: 0,
-                    borderRight: colIdx < colCount - 1 ? '1px solid rgb(39 39 42)' : undefined,
-                    borderBottom: rowIdx < layout.rows.length - 1 ? '1px solid rgb(39 39 42)' : undefined
-                  }}
-                  onClick={() => focusTerminal(tab.id)}
-                >
-                  <div className="flex items-center justify-between border-b border-zinc-800 bg-zinc-900/50 px-2 py-0.5">
-                    <span className="text-[10px] text-zinc-500">{tab.title}</span>
-                    <button
-                      onClick={() => handleClose(tab.id)}
-                      className="rounded p-0.5 text-zinc-600 hover:text-red-400"
-                      disabled={projectTabs.length <= 1}
-                    >
-                      <X size={10} />
-                    </button>
-                  </div>
-                  <div className="flex-1" style={{ minHeight: 0 }}>
-                    <TerminalInstance tabId={tab.id} projectId={tab.projectId} cwd={tab.cwd} />
-                  </div>
+      <div className="relative flex-1" style={{ minHeight: 0 }}>
+        {projectIds.map((pid) => {
+          const pTabs = tabs.filter((t) => t.projectId === pid)
+          const isActive = pid === activeProjectId
+          const layout = getGridLayout(pTabs.length)
+          let tabIndex = 0
+
+          return (
+            <div
+              key={pid}
+              className="absolute inset-0 flex flex-col"
+              style={{ visibility: isActive ? 'visible' : 'hidden', zIndex: isActive ? 1 : 0 }}
+            >
+              {pTabs.length === 0 ? (
+                <div className="flex h-full items-center justify-center text-xs text-zinc-600">
+                  Initializing terminals...
                 </div>
-              )
-            })}
-          </div>
-        ))}
+              ) : (
+                <div className="flex flex-1 flex-col" style={{ minHeight: 0 }}>
+                  {layout.rows.map((colCount, rowIdx) => (
+                    <div key={rowIdx} className="flex flex-1" style={{ minHeight: 0 }}>
+                      {Array.from({ length: colCount }).map((_, colIdx) => {
+                        const tab = pTabs[tabIndex]
+                        tabIndex++
+                        if (!tab) return null
+                        return (
+                          <div
+                            key={tab.id}
+                            className="flex flex-1 flex-col"
+                            style={{
+                              minWidth: 0,
+                              minHeight: 0,
+                              borderRight: colIdx < colCount - 1 ? '1px solid rgb(39 39 42)' : undefined,
+                              borderBottom: rowIdx < layout.rows.length - 1 ? '1px solid rgb(39 39 42)' : undefined
+                            }}
+                            onClick={() => focusTerminal(tab.id)}
+                          >
+                            <div className="flex items-center justify-between border-b border-zinc-800 bg-zinc-900/50 px-2 py-0.5">
+                              <span className="text-[10px] text-zinc-500">{tab.title}</span>
+                              <button
+                                onClick={() => handleClose(tab.id)}
+                                className="rounded p-0.5 text-zinc-600 hover:text-red-400"
+                                disabled={pTabs.length <= 1}
+                              >
+                                <X size={10} />
+                              </button>
+                            </div>
+                            <div className="flex-1" style={{ minHeight: 0 }}>
+                              <TerminalInstance tabId={tab.id} projectId={tab.projectId} cwd={tab.cwd} />
+                            </div>
+                          </div>
+                        )
+                      })}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )
+        })}
       </div>
       <div className="flex items-center border-t border-zinc-800 bg-zinc-900/50 px-2 py-0.5">
         <button

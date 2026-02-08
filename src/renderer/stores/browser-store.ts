@@ -1,11 +1,41 @@
 import { create } from 'zustand'
 import { v4 as uuid } from 'uuid'
-import type { BrowserTab, DeviceMode, ConsoleEntry, NetworkEntry } from '@/models/types'
+import type {
+  BrowserTab,
+  DeviceMode,
+  ConsoleEntry,
+  NetworkEntry,
+  PersistedBrowserTab
+} from '@/models/types'
+
+const debounceTimers = new Map<string, ReturnType<typeof setTimeout>>()
+
+function debouncedSave(projectId: string): void {
+  const existing = debounceTimers.get(projectId)
+  if (existing) clearTimeout(existing)
+
+  debounceTimers.set(
+    projectId,
+    setTimeout(() => {
+      debounceTimers.delete(projectId)
+      const state = useBrowserStore.getState()
+      const projectTabs = state.tabs.filter((t) => t.projectId === projectId)
+      const persisted: PersistedBrowserTab[] = projectTabs.map((t) => ({
+        id: t.id,
+        url: t.url,
+        deviceMode: t.deviceMode,
+        title: t.title
+      }))
+      const activeTabId = state.activeTabPerProject[projectId] ?? ''
+      window.api.browser.saveTabs(projectId, persisted, activeTabId)
+    }, 500)
+  )
+}
 
 interface BrowserStore {
   tabs: BrowserTab[]
   activeTabPerProject: Record<string, string>
-  devToolsTab: 'console' | 'network'
+  devToolsTab: 'console' | 'network' | 'passwords'
   createTab: (projectId: string) => string
   closeTab: (projectId: string, tabId: string) => void
   setActiveTab: (projectId: string, tabId: string) => void
@@ -16,6 +46,7 @@ interface BrowserStore {
   setDevToolsTab: (tab: 'console' | 'network') => void
   clearConsole: (tabId: string) => void
   clearNetwork: (tabId: string) => void
+  loadTabsForProject: (projectId: string) => Promise<void>
 }
 
 export const useBrowserStore = create<BrowserStore>((set, get) => ({
@@ -39,6 +70,7 @@ export const useBrowserStore = create<BrowserStore>((set, get) => ({
       tabs: [...state.tabs, tab],
       activeTabPerProject: { ...state.activeTabPerProject, [projectId]: tabId }
     }))
+    debouncedSave(projectId)
     return tabId
   },
 
@@ -54,27 +86,31 @@ export const useBrowserStore = create<BrowserStore>((set, get) => ({
 
       return { tabs, activeTabPerProject }
     })
+    debouncedSave(projectId)
   },
 
   setActiveTab: (projectId: string, tabId: string) => {
     set((state) => ({
       activeTabPerProject: { ...state.activeTabPerProject, [projectId]: tabId }
     }))
+    debouncedSave(projectId)
   },
 
   setUrl: (tabId: string, url: string) => {
     set((state) => ({
       tabs: state.tabs.map((t) => (t.id === tabId ? { ...t, url } : t))
     }))
+    const tab = get().tabs.find((t) => t.id === tabId)
+    if (tab) debouncedSave(tab.projectId)
   },
 
   setDeviceMode: (tabId: string, mode: DeviceMode) => {
     set((state) => ({
       tabs: state.tabs.map((t) => (t.id === tabId ? { ...t, deviceMode: mode } : t))
     }))
-    window.api.browser.setDevice(tabId, mode).catch(() => {
-      // device mode is best-effort, webview may not be ready
-    })
+    window.api.browser.setDevice(tabId, mode).catch(() => {})
+    const tab = get().tabs.find((t) => t.id === tabId)
+    if (tab) debouncedSave(tab.projectId)
   },
 
   addConsoleEntry: (tabId: string, entry: ConsoleEntry) => {
@@ -108,6 +144,32 @@ export const useBrowserStore = create<BrowserStore>((set, get) => ({
   clearNetwork: (tabId: string) => {
     set((state) => ({
       tabs: state.tabs.map((t) => (t.id === tabId ? { ...t, networkEntries: [] } : t))
+    }))
+  },
+
+  loadTabsForProject: async (projectId: string): Promise<void> => {
+    const existing = get().tabs.filter((t) => t.projectId === projectId)
+    if (existing.length > 0) return
+
+    const { tabs: persisted, activeTabId } = await window.api.browser.loadTabs(projectId)
+    if (persisted.length === 0) return
+
+    const hydrated: BrowserTab[] = persisted.map((p) => ({
+      id: p.id,
+      title: p.title,
+      projectId,
+      url: p.url,
+      deviceMode: p.deviceMode,
+      consoleEntries: [],
+      networkEntries: []
+    }))
+
+    set((state) => ({
+      tabs: [...state.tabs, ...hydrated],
+      activeTabPerProject: {
+        ...state.activeTabPerProject,
+        [projectId]: activeTabId || hydrated[0].id
+      }
     }))
   }
 }))

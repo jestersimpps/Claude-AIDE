@@ -49,6 +49,13 @@ export interface BrowserTab {
   networkEntries: NetworkEntry[]
 }
 
+export interface PersistedBrowserTab {
+  id: string
+  url: string
+  deviceMode: DeviceMode
+  title: string
+}
+
 export interface GitCommit {
   hash: string
   shortHash: string
@@ -71,4 +78,19 @@ export interface OpenFile {
   name: string
   content: string
   originalContent?: string | null
+}
+
+export interface SavedCredential {
+  id: string
+  domain: string
+  username: string
+  createdAt: number
+  updatedAt: number
+}
+
+export interface PasswordPromptData {
+  tabId: string
+  domain: string
+  username: string
+  password: string
 }

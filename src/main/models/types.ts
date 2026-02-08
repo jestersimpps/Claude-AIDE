@@ -55,6 +55,15 @@ export interface GitBranch {
 
 export type GitFileStatus = 'modified' | 'added' | 'untracked' | 'deleted' | 'renamed' | 'conflict'
 
+export interface EncryptedCredential {
+  id: string
+  domain: string
+  username: string
+  encryptedPassword: string
+  createdAt: number
+  updatedAt: number
+}
+
 export const DEVICE_CONFIGS: Record<DeviceMode, DeviceConfig> = {
   desktop: {
     mode: 'desktop',

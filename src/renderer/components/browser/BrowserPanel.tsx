@@ -1,10 +1,14 @@
 import { useEffect, useRef, useState, useCallback } from 'react'
 import { useBrowserStore } from '@/stores/browser-store'
 import { useProjectStore } from '@/stores/project-store'
+import { usePasswordStore } from '@/stores/password-store'
 import { DeviceToolbar } from './DeviceToolbar'
 import { ConsolePanel } from './ConsolePanel'
 import { NetworkPanel } from './NetworkPanel'
-import { ArrowLeft, ArrowRight, RotateCw, Plus, X } from 'lucide-react'
+import { PasswordSavePrompt } from './PasswordSavePrompt'
+import { PasswordsPanel } from './PasswordsPanel'
+import { getDetectionScript, getAutoFillScript } from '@/lib/password-injection'
+import { ArrowLeft, ArrowRight, RotateCw, Plus, X, Inspect } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { ConsoleEntry, NetworkEntry } from '@/models/types'
 import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels'
@@ -37,7 +41,8 @@ export function BrowserPanel(): React.ReactElement {
     setUrl,
     setDevToolsTab,
     addConsoleEntry,
-    addNetworkEntry
+    addNetworkEntry,
+    loadTabsForProject
   } = useBrowserStore()
 
   const projectTabs = tabs.filter((t) => t.projectId === activeProjectId)
@@ -49,6 +54,18 @@ export function BrowserPanel(): React.ReactElement {
   const [canGoForward, setCanGoForward] = useState(false)
   const webviewRefs = useRef<Map<string, Electron.WebviewTag>>(new Map())
   const attachedTabs = useRef(new Set<string>())
+
+  useEffect(() => {
+    const unsub = window.api.browser.onReload(() => {
+      const wv = activeTabId ? webviewRefs.current.get(activeTabId) : null
+      if (wv) wv.reload()
+    })
+    return unsub
+  }, [activeTabId])
+
+  useEffect(() => {
+    if (activeProjectId) loadTabsForProject(activeProjectId)
+  }, [activeProjectId])
 
   useEffect(() => {
     setInputUrl(activeTab?.url || '')
@@ -63,6 +80,32 @@ export function BrowserPanel(): React.ReactElement {
     }
   }, [])
 
+  const injectPasswordScripts = useCallback(
+    async (webview: Electron.WebviewTag, tabId: string): Promise<void> => {
+      try {
+        webview.executeJavaScript(getDetectionScript())
+      } catch {}
+
+      if (!activeProjectId) return
+      try {
+        const url = webview.getURL()
+        const domain = getDomain(url)
+        const creds = await usePasswordStore
+          .getState()
+          .getCredentialsForDomain(activeProjectId, domain)
+        if (creds.length > 0) {
+          const password = await usePasswordStore
+            .getState()
+            .decryptPassword(activeProjectId, creds[0].id)
+          if (password) {
+            webview.executeJavaScript(getAutoFillScript(creds[0].username, password))
+          }
+        }
+      } catch {}
+    },
+    [activeProjectId]
+  )
+
   const setupWebview = useCallback(
     (tabId: string, webview: Electron.WebviewTag) => {
       webviewRefs.current.set(tabId, webview)
@@ -73,9 +116,25 @@ export function BrowserPanel(): React.ReactElement {
           attachedTabs.current.add(tabId)
           window.api.browser.attach(tabId, wcId)
         }
+        injectPasswordScripts(webview, tabId)
       }
 
       const onConsoleMessage = (e: Electron.ConsoleMessageEvent): void => {
+        if (e.message.startsWith('__VC_PWD__:')) {
+          try {
+            const data = JSON.parse(e.message.slice('__VC_PWD__:'.length))
+            if (data.type === 'form-submit' && data.password) {
+              usePasswordStore.getState().setPendingPrompt({
+                tabId,
+                domain: data.domain,
+                username: data.username || '',
+                password: data.password
+              })
+            }
+          } catch {}
+          return
+        }
+
         const levelMap: Record<number, ConsoleEntry['level']> = {
           0: 'log',
           1: 'warn',
@@ -96,6 +155,7 @@ export function BrowserPanel(): React.ReactElement {
           setCanGoBack(webview.canGoBack())
           setCanGoForward(webview.canGoForward())
         }
+        injectPasswordScripts(webview, tabId)
       }
 
       const onDidNavigateInPage = (e: Electron.DidNavigateInPageEvent): void => {
@@ -121,7 +181,7 @@ export function BrowserPanel(): React.ReactElement {
         webview.removeEventListener('did-navigate-in-page', onDidNavigateInPage as EventListener)
       }
     },
-    [activeTabId, addConsoleEntry, setUrl]
+    [activeTabId, addConsoleEntry, setUrl, injectPasswordScripts]
   )
 
   const handleNavigate = (): void => {
@@ -244,6 +304,20 @@ export function BrowserPanel(): React.ReactElement {
               <RotateCw size={14} />
             </button>
 
+            <button
+              onClick={() => {
+                const wv = activeTabId ? webviewRefs.current.get(activeTabId) : null
+                if (wv) {
+                  window.api.browser.openDevTools(wv.getWebContentsId())
+                }
+              }}
+              disabled={!activeTabId || !activeTab?.url}
+              className="rounded p-1 text-zinc-500 hover:bg-zinc-800 hover:text-zinc-300 disabled:opacity-30"
+              title="Open DevTools"
+            >
+              <Inspect size={14} />
+            </button>
+
             <form
               onSubmit={(e) => {
                 e.preventDefault()
@@ -264,6 +338,8 @@ export function BrowserPanel(): React.ReactElement {
             <DeviceToolbar />
           </div>
 
+          <PasswordSavePrompt />
+
           <div className="relative flex-1 bg-zinc-950">
             {!activeTab ? (
               <div className="flex h-full items-center justify-center text-xs text-zinc-600">
@@ -282,6 +358,7 @@ export function BrowserPanel(): React.ReactElement {
                   key={tab.id}
                   tabId={tab.id}
                   url={tab.url}
+                  projectId={tab.projectId}
                   isActive={tab.id === activeTabId}
                   onSetup={setupWebview}
                 />
@@ -317,10 +394,22 @@ export function BrowserPanel(): React.ReactElement {
             >
               Network
             </button>
+            <button
+              onClick={() => setDevToolsTab('passwords')}
+              className={cn(
+                'px-3 py-1.5 text-xs font-medium transition-colors',
+                devToolsTab === 'passwords'
+                  ? 'border-b-2 border-zinc-400 text-zinc-200'
+                  : 'text-zinc-500 hover:text-zinc-400'
+              )}
+            >
+              Passwords
+            </button>
           </div>
           <div className="flex-1 overflow-hidden">
             {devToolsTab === 'console' && <ConsolePanel />}
             {devToolsTab === 'network' && <NetworkPanel />}
+            {devToolsTab === 'passwords' && <PasswordsPanel />}
           </div>
         </div>
       </Panel>
@@ -331,11 +420,12 @@ export function BrowserPanel(): React.ReactElement {
 interface WebviewTabProps {
   tabId: string
   url: string
+  projectId: string
   isActive: boolean
   onSetup: (tabId: string, webview: Electron.WebviewTag) => () => void
 }
 
-function WebviewTab({ tabId, url, isActive, onSetup }: WebviewTabProps): React.ReactElement {
+function WebviewTab({ tabId, url, projectId, isActive, onSetup }: WebviewTabProps): React.ReactElement {
   const webviewRef = useRef<Electron.WebviewTag>(null)
   const initialUrl = useRef(url)
 
@@ -352,6 +442,7 @@ function WebviewTab({ tabId, url, isActive, onSetup }: WebviewTabProps): React.R
       className={cn('absolute inset-0 h-full w-full', isActive ? 'z-10' : 'z-0 hidden')}
       // @ts-expect-error webview attributes not in React types
       allowpopups="true"
+      partition={`persist:project-${projectId}`}
     />
   )
 }
