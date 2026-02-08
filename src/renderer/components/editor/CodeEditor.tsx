@@ -1,4 +1,4 @@
-import Editor, { type Monaco } from '@monaco-editor/react'
+import Editor, { DiffEditor, type Monaco } from '@monaco-editor/react'
 import { useEditorStore } from '@/stores/editor-store'
 import { useThemeStore } from '@/stores/theme-store'
 import { registerMonacoThemes, MONACO_THEME_NAME } from '@/config/monaco-themes'
@@ -78,22 +78,43 @@ export function CodeEditor({ projectId }: { projectId: string }): React.ReactEle
 
       <div className="flex-1">
         {activeFile ? (
-          <Editor
-            key={activeFile.path}
-            defaultValue={activeFile.content}
-            language={detectLanguage(activeFile.name)}
-            theme={MONACO_THEME_NAME[theme]}
-            beforeMount={handleBeforeMount}
-            options={{
-              readOnly: true,
-              minimap: { enabled: false },
-              fontSize: 13,
-              lineNumbers: 'on',
-              scrollBeyondLastLine: false,
-              wordWrap: 'on',
-              padding: { top: 8 }
-            }}
-          />
+          typeof activeFile.originalContent === 'string' ? (
+            <DiffEditor
+              key={`diff-${activeFile.path}`}
+              original={activeFile.originalContent}
+              modified={activeFile.content}
+              language={detectLanguage(activeFile.name)}
+              theme={MONACO_THEME_NAME[theme]}
+              beforeMount={handleBeforeMount}
+              options={{
+                readOnly: true,
+                renderSideBySide: false,
+                minimap: { enabled: false },
+                fontSize: 13,
+                lineNumbers: 'on',
+                scrollBeyondLastLine: false,
+                wordWrap: 'on',
+                padding: { top: 8 }
+              }}
+            />
+          ) : (
+            <Editor
+              key={activeFile.path}
+              defaultValue={activeFile.content}
+              language={detectLanguage(activeFile.name)}
+              theme={MONACO_THEME_NAME[theme]}
+              beforeMount={handleBeforeMount}
+              options={{
+                readOnly: true,
+                minimap: { enabled: false },
+                fontSize: 13,
+                lineNumbers: 'on',
+                scrollBeyondLastLine: false,
+                wordWrap: 'on',
+                padding: { top: 8 }
+              }}
+            />
+          )
         ) : (
           <div className="flex h-full items-center justify-center text-sm text-zinc-600">
             No file open

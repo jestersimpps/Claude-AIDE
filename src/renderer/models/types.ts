@@ -70,4 +70,5 @@ export interface OpenFile {
   path: string
   name: string
   content: string
+  originalContent?: string | null
 }

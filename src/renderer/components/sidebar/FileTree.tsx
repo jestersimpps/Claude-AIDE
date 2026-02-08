@@ -27,11 +27,13 @@ const GIT_STATUS_LABELS: Record<GitFileStatus, string> = {
 function TreeNode({
   node,
   depth,
-  projectId
+  projectId,
+  cwd
 }: {
   node: FileNode
   depth: number
   projectId: string
+  cwd: string
 }): React.ReactElement {
   const expandedPaths = useFileTreeStore((s) => s.expandedPerProject[projectId])
   const { toggleExpanded } = useFileTreeStore()
@@ -50,7 +52,7 @@ function TreeNode({
           isActive ? 'bg-zinc-800/70' : ''
         } ${statusColor || (isActive ? 'text-zinc-200' : 'text-zinc-400')}`}
         style={{ paddingLeft: `${depth * 12 + 4}px` }}
-        onClick={() => openFile(projectId, node.path, node.name)}
+        onClick={() => openFile(projectId, node.path, node.name, cwd, fileStatus)}
       >
         <File size={14} className="shrink-0 text-zinc-600" />
         <span className="flex-1 truncate">{node.name}</span>
@@ -80,7 +82,7 @@ function TreeNode({
       </div>
       {isExpanded &&
         node.children?.map((child) => (
-          <TreeNode key={child.path} node={child} depth={depth + 1} projectId={projectId} />
+          <TreeNode key={child.path} node={child} depth={depth + 1} projectId={projectId} cwd={cwd} />
         ))}
     </div>
   )
@@ -129,7 +131,7 @@ export function FileTree({ projectId }: { projectId: string }): React.ReactEleme
   return (
     <div className="flex flex-col overflow-y-auto p-1">
       {tree.children?.map((child) => (
-        <TreeNode key={child.path} node={child} depth={0} projectId={projectId} />
+        <TreeNode key={child.path} node={child} depth={0} projectId={projectId} cwd={activeProject.path} />
       ))}
     </div>
   )

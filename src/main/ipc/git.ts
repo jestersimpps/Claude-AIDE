@@ -1,5 +1,5 @@
 import { ipcMain } from 'electron'
-import { isGitRepo, getCommits, getBranches, getStatus } from '@main/services/git-service'
+import { isGitRepo, getCommits, getBranches, getStatus, getFileAtHead } from '@main/services/git-service'
 import type { GitCommit, GitBranch, GitFileStatus } from '@main/models/types'
 
 export function registerGitHandlers(): void {
@@ -19,6 +19,13 @@ export function registerGitHandlers(): void {
     'git:status',
     (_event, cwd: string): Record<string, GitFileStatus> => {
       return getStatus(cwd)
+    }
+  )
+
+  ipcMain.handle(
+    'git:file-at-head',
+    (_event, cwd: string, filePath: string): string | null => {
+      return getFileAtHead(cwd, filePath)
     }
   )
 }

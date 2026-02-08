@@ -67,6 +67,15 @@ function parseFileStatus(x: string, y: string): GitFileStatus {
   return 'modified'
 }
 
+export function getFileAtHead(cwd: string, absolutePath: string): string | null {
+  try {
+    const relativePath = path.relative(cwd, absolutePath)
+    return runGit(cwd, `show HEAD:${relativePath}`)
+  } catch {
+    return null
+  }
+}
+
 export function getStatus(cwd: string): Record<string, GitFileStatus> {
   try {
     const raw = runGit(cwd, 'status --porcelain')

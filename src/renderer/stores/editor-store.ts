@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import type { OpenFile } from '@/models/types'
+import type { OpenFile, GitFileStatus } from '@/models/types'
 
 type CenterTab = 'browser' | 'editor'
 
@@ -12,7 +12,7 @@ interface EditorStore {
   statePerProject: Record<string, ProjectEditorState>
   centerTabPerProject: Record<string, CenterTab>
   setCenterTab: (projectId: string, tab: CenterTab) => void
-  openFile: (projectId: string, path: string, name: string) => Promise<void>
+  openFile: (projectId: string, path: string, name: string, cwd?: string, gitStatus?: GitFileStatus) => Promise<void>
   closeFile: (projectId: string, path: string) => void
   setActiveFile: (projectId: string, path: string) => void
 }
@@ -29,7 +29,7 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
     }))
   },
 
-  openFile: async (projectId: string, path: string, name: string) => {
+  openFile: async (projectId: string, path: string, name: string, cwd?: string, gitStatus?: GitFileStatus) => {
     const state = get().statePerProject[projectId] ?? EMPTY_STATE
     const existing = state.openFiles.find((f) => f.path === path)
     if (existing) {
@@ -43,13 +43,17 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
       return
     }
     const content = await window.api.fs.readFile(path)
+
+    const needsOriginal = cwd && gitStatus && ['modified', 'deleted', 'renamed', 'conflict'].includes(gitStatus)
+    const originalContent = needsOriginal ? await window.api.git.fileAtHead(cwd, path) : undefined
+
     set((s) => {
       const prev = s.statePerProject[projectId] ?? EMPTY_STATE
       return {
         statePerProject: {
           ...s.statePerProject,
           [projectId]: {
-            openFiles: [...prev.openFiles, { path, name, content }],
+            openFiles: [...prev.openFiles, { path, name, content, originalContent }],
             activeFilePath: path
           }
         },
