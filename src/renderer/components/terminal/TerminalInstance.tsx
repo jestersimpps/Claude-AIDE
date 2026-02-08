@@ -76,59 +76,63 @@ export function applyThemeToAll(theme: 'dark' | 'light'): void {
 
 export function TerminalInstance({ tabId, projectId, cwd }: TerminalInstanceProps): React.ReactElement {
   const containerRef = useRef<HTMLDivElement>(null)
-  const initRef = useRef(false)
 
   useEffect(() => {
     const el = containerRef.current
-    if (!el || initRef.current) return
-    initRef.current = true
+    if (!el) return
 
-    const terminal = new Terminal({
-      cursorBlink: true,
-      fontSize: 13,
-      fontFamily: 'Menlo, Monaco, Courier New, monospace',
-      cols: 80,
-      rows: 24,
-      allowProposedApi: true,
-      theme: getTerminalTheme(useThemeStore.getState().theme)
-    })
+    let entry = terminalsMap.get(tabId)
 
-    const fitAddon = new FitAddon()
-    const searchAddon = new SearchAddon()
-    const unicode11Addon = new Unicode11Addon()
-    const webLinksAddon = new WebLinksAddon()
+    if (!entry) {
+      const terminal = new Terminal({
+        cursorBlink: true,
+        fontSize: 13,
+        fontFamily: 'Menlo, Monaco, Courier New, monospace',
+        cols: 80,
+        rows: 24,
+        allowProposedApi: true,
+        theme: getTerminalTheme(useThemeStore.getState().theme)
+      })
 
-    terminal.loadAddon(fitAddon)
-    terminal.loadAddon(searchAddon)
-    terminal.loadAddon(unicode11Addon)
-    terminal.loadAddon(webLinksAddon)
+      const fitAddon = new FitAddon()
+      const searchAddon = new SearchAddon()
+      const unicode11Addon = new Unicode11Addon()
+      const webLinksAddon = new WebLinksAddon()
 
-    terminal.open(el)
+      terminal.loadAddon(fitAddon)
+      terminal.loadAddon(searchAddon)
+      terminal.loadAddon(unicode11Addon)
+      terminal.loadAddon(webLinksAddon)
 
-    terminal.unicode.activeVersion = '11'
+      terminal.open(el)
 
-    try {
-      terminal.loadAddon(new WebglAddon())
-    } catch {
-      /* WebGL not available, fall back to canvas renderer */
+      terminal.unicode.activeVersion = '11'
+
+      try {
+        terminal.loadAddon(new WebglAddon())
+      } catch {
+        /* WebGL not available, fall back to canvas renderer */
+      }
+
+      entry = { terminal, fitAddon, searchAddon }
+      terminalsMap.set(tabId, entry)
+
+      terminal.onData((data) => {
+        window.api.terminal.write(tabId, data)
+      })
+
+      terminal.onResize(({ cols, rows }) => {
+        window.api.terminal.resize(tabId, cols, rows)
+      })
+
+      setTimeout(() => {
+        fitAddon.fit()
+        terminal.focus()
+        window.api.terminal.create(tabId, projectId, cwd, terminal.cols, terminal.rows)
+      }, 200)
     }
 
-    terminalsMap.set(tabId, { terminal, fitAddon, searchAddon })
-
-    terminal.onData((data) => {
-      window.api.terminal.write(tabId, data)
-    })
-
-    terminal.onResize(({ cols, rows }) => {
-      window.api.terminal.resize(tabId, cols, rows)
-    })
-
-    setTimeout(() => {
-      fitAddon.fit()
-      terminal.focus()
-      window.api.terminal.create(tabId, projectId, cwd, terminal.cols, terminal.rows)
-    }, 200)
-
+    const { fitAddon } = entry
     let resizeTimer: ReturnType<typeof setTimeout> | null = null
     const observer = new ResizeObserver(() => {
       if (resizeTimer) clearTimeout(resizeTimer)
