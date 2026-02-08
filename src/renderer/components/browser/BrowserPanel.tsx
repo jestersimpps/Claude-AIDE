@@ -17,100 +17,122 @@ function getDomain(url: string): string {
   }
 }
 
+function normalizeUrl(url: string): string {
+  if (url.startsWith('http://') || url.startsWith('https://')) return url
+  if (url.startsWith('localhost') || url.startsWith('127.0.0.1') || url.startsWith('0.0.0.0')) {
+    return `http://${url}`
+  }
+  return `https://${url}`
+}
+
 export function BrowserPanel(): React.ReactElement {
   const activeProjectId = useProjectStore((s) => s.activeProjectId)
   const tabs = useBrowserStore((s) => s.tabs)
   const activeTabPerProject = useBrowserStore((s) => s.activeTabPerProject)
   const devToolsTab = useBrowserStore((s) => s.devToolsTab)
-  const { createTab, closeTab, setActiveTab, setUrl, setDevToolsTab, addConsoleEntry, addNetworkEntry } =
-    useBrowserStore()
+  const {
+    createTab,
+    closeTab,
+    setActiveTab,
+    setUrl,
+    setDevToolsTab,
+    addConsoleEntry,
+    addNetworkEntry
+  } = useBrowserStore()
 
   const projectTabs = tabs.filter((t) => t.projectId === activeProjectId)
   const activeTabId = activeProjectId ? activeTabPerProject[activeProjectId] || null : null
   const activeTab = projectTabs.find((t) => t.id === activeTabId)
 
   const [inputUrl, setInputUrl] = useState(activeTab?.url || '')
-  const viewportRef = useRef<HTMLDivElement>(null)
-  const createdViews = useRef(new Set<string>())
-  const prevActiveTabRef = useRef<string | null>(null)
+  const [canGoBack, setCanGoBack] = useState(false)
+  const [canGoForward, setCanGoForward] = useState(false)
+  const webviewRefs = useRef<Map<string, Electron.WebviewTag>>(new Map())
+  const attachedTabs = useRef(new Set<string>())
 
   useEffect(() => {
     setInputUrl(activeTab?.url || '')
   }, [activeTabId])
 
   useEffect(() => {
-    if (!activeTabId || !createdViews.current.has(activeTabId)) {
-      if (prevActiveTabRef.current && createdViews.current.has(prevActiveTabRef.current)) {
-        window.api.browser.setBounds(prevActiveTabRef.current, { x: 0, y: 0, width: 0, height: 0 })
-      }
-      prevActiveTabRef.current = activeTabId
-      return
-    }
-
-    const bounds = getViewportBounds()
-    if (bounds) {
-      window.api.browser.setActiveTab(activeTabId, bounds)
-    }
-    prevActiveTabRef.current = activeTabId
-  }, [activeTabId])
-
-  useEffect(() => {
-    const unsubConsole = window.api.browser.onConsole((tabId: string, entry: unknown) => {
-      addConsoleEntry(tabId, entry as ConsoleEntry)
-    })
-
     const unsubNetwork = window.api.browser.onNetwork((tabId: string, entry: unknown) => {
       addNetworkEntry(tabId, entry as NetworkEntry)
     })
-
     return () => {
-      unsubConsole()
       unsubNetwork()
     }
   }, [])
 
-  const getViewportBounds = useCallback((): {
-    x: number
-    y: number
-    width: number
-    height: number
-  } | null => {
-    if (!viewportRef.current) return null
-    const rect = viewportRef.current.getBoundingClientRect()
-    return {
-      x: Math.round(rect.x),
-      y: Math.round(rect.y),
-      width: Math.round(rect.width),
-      height: Math.round(rect.height)
-    }
-  }, [])
+  const setupWebview = useCallback(
+    (tabId: string, webview: Electron.WebviewTag) => {
+      webviewRefs.current.set(tabId, webview)
 
-  const updateBounds = useCallback(() => {
-    if (!activeTabId || !createdViews.current.has(activeTabId)) return
-    const bounds = getViewportBounds()
-    if (bounds) {
-      window.api.browser.setBounds(activeTabId, bounds)
-    }
-  }, [activeTabId, getViewportBounds])
+      const onDomReady = (): void => {
+        const wcId = webview.getWebContentsId()
+        if (!attachedTabs.current.has(tabId)) {
+          attachedTabs.current.add(tabId)
+          window.api.browser.attach(tabId, wcId)
+        }
+      }
 
-  useEffect(() => {
-    if (!viewportRef.current) return
-    const observer = new ResizeObserver(updateBounds)
-    observer.observe(viewportRef.current)
-    return () => observer.disconnect()
-  }, [updateBounds])
+      const onConsoleMessage = (e: Electron.ConsoleMessageEvent): void => {
+        const levelMap: Record<number, ConsoleEntry['level']> = {
+          0: 'log',
+          1: 'warn',
+          2: 'error',
+          3: 'info'
+        }
+        addConsoleEntry(tabId, {
+          level: levelMap[e.level] || 'log',
+          message: e.message,
+          timestamp: Date.now()
+        })
+      }
+
+      const onDidNavigate = (e: Electron.DidNavigateEvent): void => {
+        setUrl(tabId, e.url)
+        if (tabId === activeTabId) {
+          setInputUrl(e.url)
+          setCanGoBack(webview.canGoBack())
+          setCanGoForward(webview.canGoForward())
+        }
+      }
+
+      const onDidNavigateInPage = (e: Electron.DidNavigateInPageEvent): void => {
+        if (e.isMainFrame) {
+          setUrl(tabId, e.url)
+          if (tabId === activeTabId) {
+            setInputUrl(e.url)
+            setCanGoBack(webview.canGoBack())
+            setCanGoForward(webview.canGoForward())
+          }
+        }
+      }
+
+      webview.addEventListener('dom-ready', onDomReady)
+      webview.addEventListener('console-message', onConsoleMessage as EventListener)
+      webview.addEventListener('did-navigate', onDidNavigate as EventListener)
+      webview.addEventListener('did-navigate-in-page', onDidNavigateInPage as EventListener)
+
+      return () => {
+        webview.removeEventListener('dom-ready', onDomReady)
+        webview.removeEventListener('console-message', onConsoleMessage as EventListener)
+        webview.removeEventListener('did-navigate', onDidNavigate as EventListener)
+        webview.removeEventListener('did-navigate-in-page', onDidNavigateInPage as EventListener)
+      }
+    },
+    [activeTabId, addConsoleEntry, setUrl]
+  )
 
   const handleNavigate = (): void => {
     if (!inputUrl.trim() || !activeTabId) return
-    setUrl(activeTabId, inputUrl)
-
-    if (!createdViews.current.has(activeTabId)) {
-      window.api.browser.create(activeTabId)
-      createdViews.current.add(activeTabId)
+    const url = normalizeUrl(inputUrl.trim())
+    setUrl(activeTabId, url)
+    setInputUrl(url)
+    const webview = webviewRefs.current.get(activeTabId)
+    if (webview) {
+      webview.loadURL(url)
     }
-
-    window.api.browser.navigate(activeTabId, inputUrl)
-    requestAnimationFrame(updateBounds)
   }
 
   const handleNewTab = (): void => {
@@ -120,19 +142,28 @@ export function BrowserPanel(): React.ReactElement {
 
   const handleCloseTab = (tabId: string): void => {
     if (!activeProjectId) return
-    if (createdViews.current.has(tabId)) {
-      window.api.browser.destroy(tabId)
-      createdViews.current.delete(tabId)
+    if (attachedTabs.current.has(tabId)) {
+      window.api.browser.detach(tabId)
+      attachedTabs.current.delete(tabId)
     }
+    webviewRefs.current.delete(tabId)
     closeTab(activeProjectId, tabId)
   }
 
   const handleSwitchTab = (tabId: string): void => {
     if (!activeProjectId) return
     setActiveTab(activeProjectId, tabId)
+    const webview = webviewRefs.current.get(tabId)
+    if (webview) {
+      try {
+        setCanGoBack(webview.canGoBack())
+        setCanGoForward(webview.canGoForward())
+      } catch {
+        setCanGoBack(false)
+        setCanGoForward(false)
+      }
+    }
   }
-
-  const hasNavigated = activeTab?.url ? createdViews.current.has(activeTabId!) : false
 
   return (
     <PanelGroup direction="vertical">
@@ -177,21 +208,36 @@ export function BrowserPanel(): React.ReactElement {
 
           <div className="flex items-center gap-2 border-b border-zinc-800 bg-zinc-900/50 px-2 py-1.5">
             <button
-              onClick={() => activeTabId && window.api.browser.back(activeTabId)}
-              disabled={!activeTabId}
+              onClick={() => {
+                const wv = activeTabId ? webviewRefs.current.get(activeTabId) : null
+                if (wv) {
+                  wv.goBack()
+                }
+              }}
+              disabled={!canGoBack}
               className="rounded p-1 text-zinc-500 hover:bg-zinc-800 hover:text-zinc-300 disabled:opacity-30"
             >
               <ArrowLeft size={14} />
             </button>
             <button
-              onClick={() => activeTabId && window.api.browser.forward(activeTabId)}
-              disabled={!activeTabId}
+              onClick={() => {
+                const wv = activeTabId ? webviewRefs.current.get(activeTabId) : null
+                if (wv) {
+                  wv.goForward()
+                }
+              }}
+              disabled={!canGoForward}
               className="rounded p-1 text-zinc-500 hover:bg-zinc-800 hover:text-zinc-300 disabled:opacity-30"
             >
               <ArrowRight size={14} />
             </button>
             <button
-              onClick={() => activeTabId && window.api.browser.reload(activeTabId)}
+              onClick={() => {
+                const wv = activeTabId ? webviewRefs.current.get(activeTabId) : null
+                if (wv) {
+                  wv.reload()
+                }
+              }}
               disabled={!activeTabId}
               className="rounded p-1 text-zinc-500 hover:bg-zinc-800 hover:text-zinc-300 disabled:opacity-30"
             >
@@ -218,23 +264,33 @@ export function BrowserPanel(): React.ReactElement {
             <DeviceToolbar />
           </div>
 
-          <div ref={viewportRef} className="flex-1 bg-zinc-950">
+          <div className="relative flex-1 bg-zinc-950">
             {!activeTab ? (
               <div className="flex h-full items-center justify-center text-xs text-zinc-600">
                 {activeProjectId ? 'Click + to open a browser tab' : 'Select a project first'}
               </div>
-            ) : (
-              !hasNavigated && (
-                <div className="flex h-full items-center justify-center text-xs text-zinc-600">
-                  Enter a URL to preview
-                </div>
-              )
-            )}
+            ) : !activeTab.url ? (
+              <div className="flex h-full items-center justify-center text-xs text-zinc-600">
+                Enter a URL to preview
+              </div>
+            ) : null}
+
+            {projectTabs
+              .filter((tab) => tab.url)
+              .map((tab) => (
+                <WebviewTab
+                  key={tab.id}
+                  tabId={tab.id}
+                  url={tab.url}
+                  isActive={tab.id === activeTabId}
+                  onSetup={setupWebview}
+                />
+              ))}
           </div>
         </div>
       </Panel>
 
-      <PanelResizeHandle className="h-1 bg-zinc-800 hover:bg-zinc-700 transition-colors" />
+      <PanelResizeHandle className="h-1 bg-zinc-800 transition-colors hover:bg-zinc-700" />
 
       <Panel defaultSize={30} minSize={10}>
         <div className="flex h-full flex-col bg-zinc-950">
@@ -268,5 +324,33 @@ export function BrowserPanel(): React.ReactElement {
         </div>
       </Panel>
     </PanelGroup>
+  )
+}
+
+interface WebviewTabProps {
+  tabId: string
+  url: string
+  isActive: boolean
+  onSetup: (tabId: string, webview: Electron.WebviewTag) => () => void
+}
+
+function WebviewTab({ tabId, url, isActive, onSetup }: WebviewTabProps): React.ReactElement {
+  const webviewRef = useRef<Electron.WebviewTag>(null)
+  const initialUrl = useRef(url)
+
+  useEffect(() => {
+    const webview = webviewRef.current
+    if (!webview) return
+    return onSetup(tabId, webview)
+  }, [tabId])
+
+  return (
+    <webview
+      ref={webviewRef}
+      src={initialUrl.current}
+      className={cn('absolute inset-0 h-full w-full', isActive ? 'z-10' : 'z-0 hidden')}
+      // @ts-expect-error webview attributes not in React types
+      allowpopups="true"
+    />
   )
 }

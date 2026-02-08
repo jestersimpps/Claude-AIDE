@@ -72,7 +72,7 @@ export const useBrowserStore = create<BrowserStore>((set, get) => ({
     set((state) => ({
       tabs: state.tabs.map((t) => (t.id === tabId ? { ...t, deviceMode: mode } : t))
     }))
-    window.api.browser.setDevice(tabId, mode)
+    window.api.browser.setDevice(tabId, mode).catch(() => {})
   },
 
   addConsoleEntry: (tabId: string, entry: ConsoleEntry) => {

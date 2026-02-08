@@ -7,7 +7,7 @@ import { registerBrowserHandlers } from '@main/ipc/browser'
 import { registerGitHandlers } from '@main/ipc/git'
 import { killAll } from '@main/services/pty-manager'
 import { stopWatching } from '@main/services/file-watcher'
-import { destroyAllViews } from '@main/services/browser-view'
+import { detachAllTabs } from '@main/services/browser-view'
 
 let mainWindow: BrowserWindow | null = null
 
@@ -21,7 +21,8 @@ function createWindow(): void {
     backgroundColor: '#09090b',
     webPreferences: {
       preload: path.join(__dirname, '../preload/index.js'),
-      sandbox: false
+      sandbox: false,
+      webviewTag: true
     }
   })
 
@@ -53,12 +54,12 @@ app.whenReady().then(() => {
 app.on('window-all-closed', () => {
   killAll()
   stopWatching()
-  destroyAllViews()
+  detachAllTabs()
   if (process.platform !== 'darwin') app.quit()
 })
 
 app.on('before-quit', () => {
   killAll()
   stopWatching()
-  destroyAllViews()
+  detachAllTabs()
 })

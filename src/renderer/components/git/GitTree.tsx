@@ -276,7 +276,7 @@ export function GitTree(): React.ReactElement {
                       ))}
                     <span className="truncate text-xs text-zinc-300">{row.commit.message}</span>
                   </div>
-                  <div className="flex items-center gap-2 text-[10px] text-zinc-600">
+                  <div className="flex items-center gap-2 text-[10px] text-zinc-400">
                     <span className="font-mono">{row.commit.shortHash}</span>
                     <span>{row.commit.author}</span>
                     <span>{row.commit.date}</span>

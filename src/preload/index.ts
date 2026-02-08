@@ -48,26 +48,11 @@ const api = {
   },
 
   browser: {
-    create: (tabId: string) => ipcRenderer.invoke('browser:create', tabId),
-    navigate: (tabId: string, url: string) => ipcRenderer.invoke('browser:navigate', tabId, url),
-    setBounds: (tabId: string, bounds: { x: number; y: number; width: number; height: number }) =>
-      ipcRenderer.invoke('browser:set-bounds', tabId, bounds),
+    attach: (tabId: string, webContentsId: number) =>
+      ipcRenderer.invoke('browser:attach', tabId, webContentsId),
     setDevice: (tabId: string, mode: string) =>
       ipcRenderer.invoke('browser:set-device', tabId, mode),
-    setActiveTab: (
-      tabId: string,
-      bounds: { x: number; y: number; width: number; height: number }
-    ) => ipcRenderer.invoke('browser:set-active-tab', tabId, bounds),
-    back: (tabId: string) => ipcRenderer.invoke('browser:back', tabId),
-    forward: (tabId: string) => ipcRenderer.invoke('browser:forward', tabId),
-    reload: (tabId: string) => ipcRenderer.invoke('browser:reload', tabId),
-    destroy: (tabId: string) => ipcRenderer.invoke('browser:destroy', tabId),
-    onConsole: (callback: (tabId: string, entry: unknown) => void) => {
-      const handler = (_event: Electron.IpcRendererEvent, tabId: string, entry: unknown) =>
-        callback(tabId, entry)
-      ipcRenderer.on('browser:console', handler)
-      return () => ipcRenderer.removeListener('browser:console', handler)
-    },
+    detach: (tabId: string) => ipcRenderer.invoke('browser:detach', tabId),
     onNetwork: (callback: (tabId: string, entry: unknown) => void) => {
       const handler = (_event: Electron.IpcRendererEvent, tabId: string, entry: unknown) =>
         callback(tabId, entry)
