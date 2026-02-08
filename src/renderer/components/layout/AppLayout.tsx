@@ -7,6 +7,7 @@ import { CodeEditor } from '@/components/editor/CodeEditor'
 import { useEditorStore } from '@/stores/editor-store'
 import { useProjectStore } from '@/stores/project-store'
 import { GitTree } from '@/components/git/GitTree'
+import { StatusBar } from '@/components/layout/StatusBar'
 
 export function AppLayout(): React.ReactElement {
   const activeProjectId = useProjectStore((s) => s.activeProjectId)
@@ -22,7 +23,7 @@ export function AppLayout(): React.ReactElement {
         <span className="text-sm font-semibold text-zinc-400">VibeCoder</span>
       </div>
 
-      <PanelGroup direction="horizontal" className="flex-1">
+      <PanelGroup direction="horizontal" className="flex-1 min-h-0">
         <Panel defaultSize={18} minSize={12} maxSize={30}>
           <div className="flex h-full flex-col border-r border-zinc-800 bg-zinc-900/30">
             <ProjectSelector />
@@ -53,6 +54,8 @@ export function AppLayout(): React.ReactElement {
           </PanelGroup>
         </Panel>
       </PanelGroup>
+
+      <StatusBar />
     </div>
   )
 }

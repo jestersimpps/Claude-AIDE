@@ -20,8 +20,8 @@ const api = {
   },
 
   terminal: {
-    create: (tabId: string, projectId: string, cwd: string) =>
-      ipcRenderer.invoke('terminal:create', tabId, projectId, cwd),
+    create: (tabId: string, projectId: string, cwd: string, cols: number, rows: number) =>
+      ipcRenderer.invoke('terminal:create', tabId, projectId, cwd, cols, rows),
     write: (tabId: string, data: string) =>
       ipcRenderer.invoke('terminal:write', tabId, data),
     resize: (tabId: string, cols: number, rows: number) =>

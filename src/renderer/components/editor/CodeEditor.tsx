@@ -1,5 +1,7 @@
-import Editor from '@monaco-editor/react'
+import Editor, { type Monaco } from '@monaco-editor/react'
 import { useEditorStore } from '@/stores/editor-store'
+import { useThemeStore } from '@/stores/theme-store'
+import { registerMonacoThemes, MONACO_THEME_NAME } from '@/config/monaco-themes'
 import { X } from 'lucide-react'
 
 const EXT_LANG: Record<string, string> = {
@@ -32,7 +34,12 @@ function detectLanguage(filename: string): string {
   return EXT_LANG[ext] ?? 'plaintext'
 }
 
+function handleBeforeMount(monaco: Monaco): void {
+  registerMonacoThemes(monaco)
+}
+
 export function CodeEditor({ projectId }: { projectId: string }): React.ReactElement {
+  const theme = useThemeStore((s) => s.theme)
   const openFiles = useEditorStore((s) => s.statePerProject[projectId]?.openFiles ?? [])
   const activeFilePath = useEditorStore((s) => s.statePerProject[projectId]?.activeFilePath ?? null)
   const { setActiveFile, closeFile } = useEditorStore()
@@ -72,7 +79,8 @@ export function CodeEditor({ projectId }: { projectId: string }): React.ReactEle
             key={activeFile.path}
             defaultValue={activeFile.content}
             language={detectLanguage(activeFile.name)}
-            theme="vs-dark"
+            theme={MONACO_THEME_NAME[theme]}
+            beforeMount={handleBeforeMount}
             options={{
               readOnly: true,
               minimap: { enabled: false },

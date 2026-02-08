@@ -48,13 +48,15 @@ export function createPty(
   tabId: string,
   projectId: string,
   cwd: string,
-  win: BrowserWindow
+  win: BrowserWindow,
+  cols: number = 80,
+  rows: number = 24
 ): void {
   const shell = defaultShell()
   const proc = pty.spawn(shell, ['-l'], {
     name: 'xterm-256color',
-    cols: 80,
-    rows: 24,
+    cols,
+    rows,
     cwd,
     env: shellEnv()
   })

@@ -4,9 +4,9 @@ import { createPty, writePty, resizePty, killPty } from '@main/services/pty-mana
 export function registerTerminalHandlers(): void {
   ipcMain.handle(
     'terminal:create',
-    (event, tabId: string, projectId: string, cwd: string): void => {
+    (event, tabId: string, projectId: string, cwd: string, cols: number, rows: number): void => {
       const win = BrowserWindow.fromWebContents(event.sender)
-      if (win) createPty(tabId, projectId, cwd, win)
+      if (win) createPty(tabId, projectId, cwd, win, cols, rows)
     }
   )
 

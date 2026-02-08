@@ -1,8 +1,9 @@
-import { useEffect } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { useTerminalStore } from '@/stores/terminal-store'
 import { useProjectStore } from '@/stores/project-store'
-import { TerminalInstance, getTerminalInstance, disposeTerminal } from './TerminalInstance'
-import { Plus, X } from 'lucide-react'
+import { useThemeStore } from '@/stores/theme-store'
+import { TerminalInstance, getTerminalInstance, disposeTerminal, applyThemeToAll, searchTerminal } from './TerminalInstance'
+import { Plus, X, ChevronUp, ChevronDown } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 export function TerminalPanel(): React.ReactElement {
@@ -16,9 +17,41 @@ export function TerminalPanel(): React.ReactElement {
   const activeTabPerProject = useTerminalStore((s) => s.activeTabPerProject)
   const { createTab, closeTab, setActiveTab } = useTerminalStore()
 
+  const theme = useThemeStore((s) => s.theme)
+
+  const [searchOpen, setSearchOpen] = useState(false)
+  const [searchQuery, setSearchQuery] = useState('')
+  const searchInputRef = useRef<HTMLInputElement>(null)
+
   const projectTabs = tabs.filter((t) => t.projectId === activeProjectId)
   const activeTabId = activeProjectId ? (activeTabPerProject[activeProjectId] || null) : null
   const activeTab = projectTabs.find((t) => t.id === activeTabId)
+
+  const closeSearch = useCallback(() => {
+    setSearchOpen(false)
+    setSearchQuery('')
+  }, [])
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent): void => {
+      if ((e.metaKey || e.ctrlKey) && e.key === 'f') {
+        const el = (e.target as HTMLElement)?.closest?.('[data-terminal-panel]')
+        if (!el) return
+        e.preventDefault()
+        setSearchOpen(true)
+        setTimeout(() => searchInputRef.current?.focus(), 0)
+      }
+      if (e.key === 'Escape' && searchOpen) {
+        closeSearch()
+      }
+    }
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [searchOpen, closeSearch])
+
+  useEffect(() => {
+    applyThemeToAll(theme)
+  }, [theme])
 
   useEffect(() => {
     const unsubData = window.api.terminal.onData((tabId, data) => {
@@ -49,7 +82,7 @@ export function TerminalPanel(): React.ReactElement {
   }
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', background: '#09090b' }}>
+    <div data-terminal-panel style={{ display: 'flex', flexDirection: 'column', height: '100%', background: theme === 'dark' ? '#09090b' : '#ffffff' }}>
       <div className="flex items-center border-b border-zinc-800 bg-zinc-900/50">
         <div className="flex flex-1 items-center gap-0.5 overflow-x-auto px-1">
           {projectTabs.map((tab) => (
@@ -84,6 +117,50 @@ export function TerminalPanel(): React.ReactElement {
           <Plus size={14} />
         </button>
       </div>
+
+      {searchOpen && (
+        <div className="flex items-center gap-1 border-b border-zinc-800 bg-zinc-900/80 px-2 py-1">
+          <input
+            ref={searchInputRef}
+            type="text"
+            value={searchQuery}
+            onChange={(e) => {
+              setSearchQuery(e.target.value)
+              if (activeTabId && e.target.value) {
+                searchTerminal(activeTabId, e.target.value)
+              }
+            }}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && activeTabId && searchQuery) {
+                searchTerminal(activeTabId, searchQuery, e.shiftKey ? 'previous' : 'next')
+              }
+              if (e.key === 'Escape') {
+                closeSearch()
+              }
+            }}
+            placeholder="Search..."
+            className="h-6 flex-1 rounded border border-zinc-700 bg-zinc-800 px-2 text-xs text-zinc-200 outline-none focus:border-zinc-500"
+          />
+          <button
+            onClick={() => activeTabId && searchQuery && searchTerminal(activeTabId, searchQuery, 'previous')}
+            className="rounded p-0.5 text-zinc-400 hover:bg-zinc-700 hover:text-zinc-200"
+          >
+            <ChevronUp size={14} />
+          </button>
+          <button
+            onClick={() => activeTabId && searchQuery && searchTerminal(activeTabId, searchQuery, 'next')}
+            className="rounded p-0.5 text-zinc-400 hover:bg-zinc-700 hover:text-zinc-200"
+          >
+            <ChevronDown size={14} />
+          </button>
+          <button
+            onClick={closeSearch}
+            className="rounded p-0.5 text-zinc-400 hover:bg-zinc-700 hover:text-zinc-200"
+          >
+            <X size={14} />
+          </button>
+        </div>
+      )}
 
       <div style={{ flex: 1, minHeight: 0, position: 'relative' }}>
         {projectTabs.length === 0 && (
