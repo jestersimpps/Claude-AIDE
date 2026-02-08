@@ -38,6 +38,16 @@ export interface NetworkEntry {
   timestamp: number
 }
 
+export interface BrowserTab {
+  id: string
+  title: string
+  projectId: string
+  url: string
+  deviceMode: DeviceMode
+  consoleEntries: ConsoleEntry[]
+  networkEntries: NetworkEntry[]
+}
+
 export interface GitCommit {
   hash: string
   shortHash: string

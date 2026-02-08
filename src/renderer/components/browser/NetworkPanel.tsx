@@ -22,9 +22,14 @@ const EMPTY: NetworkEntry[] = []
 
 export function NetworkPanel(): React.ReactElement {
   const activeProjectId = useProjectStore((s) => s.activeProjectId)
+  const activeTabId = useBrowserStore((s) =>
+    activeProjectId ? s.activeTabPerProject[activeProjectId] : null
+  )
   const networkEntries = useBrowserStore((s) => {
     if (!activeProjectId) return EMPTY
-    return s.statePerProject[activeProjectId]?.networkEntries ?? EMPTY
+    const tabId = s.activeTabPerProject[activeProjectId]
+    if (!tabId) return EMPTY
+    return s.tabs.find((t) => t.id === tabId)?.networkEntries ?? EMPTY
   })
   const { clearNetwork } = useBrowserStore()
 
@@ -33,7 +38,7 @@ export function NetworkPanel(): React.ReactElement {
       <div className="flex items-center justify-between border-b border-zinc-800 px-3 py-1">
         <span className="text-xs font-medium text-zinc-500">Network</span>
         <button
-          onClick={() => activeProjectId && clearNetwork(activeProjectId)}
+          onClick={() => activeTabId && clearNetwork(activeTabId)}
           className="rounded p-1 text-zinc-600 hover:text-zinc-400"
           title="Clear"
         >

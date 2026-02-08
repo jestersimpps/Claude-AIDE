@@ -1,18 +1,20 @@
 import { BrowserWindow, WebContentsView } from 'electron'
 import { DEVICE_CONFIGS, type DeviceMode, type NetworkEntry } from '@main/models/types'
 
-let view: WebContentsView | null = null
-let parentWindow: BrowserWindow | null = null
-const pendingRequests = new Map<
-  string,
-  { method: string; url: string; timestamp: number; type: string }
->()
+interface TabView {
+  view: WebContentsView
+  pendingRequests: Map<string, { method: string; url: string; timestamp: number; type: string }>
+}
 
-export function createView(win: BrowserWindow): void {
-  destroyView()
+const views = new Map<string, TabView>()
+let activeTabId: string | null = null
+let parentWindow: BrowserWindow | null = null
+
+export function createView(tabId: string, win: BrowserWindow): void {
+  destroyView(tabId)
   parentWindow = win
 
-  view = new WebContentsView({
+  const view = new WebContentsView({
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
@@ -20,13 +22,18 @@ export function createView(win: BrowserWindow): void {
     }
   })
 
+  const pendingRequests = new Map<
+    string,
+    { method: string; url: string; timestamp: number; type: string }
+  >()
+
   win.contentView.addChildView(view)
   view.setBounds({ x: 0, y: 0, width: 0, height: 0 })
 
   view.webContents.on('console-message', (_event, level, message) => {
     if (!win.isDestroyed()) {
       const levelMap: Record<number, string> = { 0: 'log', 1: 'warn', 2: 'error', 3: 'info' }
-      win.webContents.send('browser:console', {
+      win.webContents.send('browser:console', tabId, {
         level: levelMap[level] || 'log',
         message,
         timestamp: Date.now()
@@ -34,25 +41,29 @@ export function createView(win: BrowserWindow): void {
     }
   })
 
-  setupCDP(win)
+  views.set(tabId, { view, pendingRequests })
+  setupCDP(tabId, win)
+
+  activeTabId = tabId
 }
 
-function setupCDP(win: BrowserWindow): void {
-  if (!view) return
+function setupCDP(tabId: string, win: BrowserWindow): void {
+  const entry = views.get(tabId)
+  if (!entry) return
 
   try {
-    view.webContents.debugger.attach('1.3')
+    entry.view.webContents.debugger.attach('1.3')
   } catch {
     return
   }
 
-  view.webContents.debugger.sendCommand('Network.enable')
+  entry.view.webContents.debugger.sendCommand('Network.enable')
 
-  view.webContents.debugger.on('message', (_event, method, params) => {
+  entry.view.webContents.debugger.on('message', (_event, method, params) => {
     if (win.isDestroyed()) return
 
     if (method === 'Network.requestWillBeSent') {
-      pendingRequests.set(params.requestId, {
+      entry.pendingRequests.set(params.requestId, {
         method: params.request.method,
         url: params.request.url,
         timestamp: params.timestamp * 1000,
@@ -61,9 +72,9 @@ function setupCDP(win: BrowserWindow): void {
     }
 
     if (method === 'Network.responseReceived') {
-      const pending = pendingRequests.get(params.requestId)
+      const pending = entry.pendingRequests.get(params.requestId)
       if (pending) {
-        const entry: NetworkEntry = {
+        const networkEntry: NetworkEntry = {
           id: params.requestId,
           method: pending.method,
           url: pending.url,
@@ -75,36 +86,58 @@ function setupCDP(win: BrowserWindow): void {
           duration: params.timestamp * 1000 - pending.timestamp,
           timestamp: pending.timestamp
         }
-        win.webContents.send('browser:network', entry)
-        pendingRequests.delete(params.requestId)
+        win.webContents.send('browser:network', tabId, networkEntry)
+        entry.pendingRequests.delete(params.requestId)
       }
     }
   })
 }
 
-export function navigate(url: string): void {
-  if (!view) return
+export function setActiveTab(
+  tabId: string,
+  bounds: { x: number; y: number; width: number; height: number }
+): void {
+  activeTabId = tabId
+
+  for (const [id, entry] of views) {
+    if (id === tabId) {
+      entry.view.setBounds(bounds)
+    } else {
+      entry.view.setBounds({ x: 0, y: 0, width: 0, height: 0 })
+    }
+  }
+}
+
+export function navigate(tabId: string, url: string): void {
+  const entry = views.get(tabId)
+  if (!entry) return
   let normalizedUrl = url
   if (!url.startsWith('http://') && !url.startsWith('https://')) {
     normalizedUrl = `https://${url}`
   }
-  view.webContents.loadURL(normalizedUrl)
+  entry.view.webContents.loadURL(normalizedUrl)
 }
 
-export function setBounds(bounds: { x: number; y: number; width: number; height: number }): void {
-  if (!view) return
-  view.setBounds(bounds)
+export function setBounds(
+  tabId: string,
+  bounds: { x: number; y: number; width: number; height: number }
+): void {
+  if (tabId !== activeTabId) return
+  const entry = views.get(tabId)
+  if (!entry) return
+  entry.view.setBounds(bounds)
 }
 
-export function setDevice(mode: DeviceMode): void {
-  if (!view) return
+export function setDevice(tabId: string, mode: DeviceMode): void {
+  const entry = views.get(tabId)
+  if (!entry) return
   const config = DEVICE_CONFIGS[mode]
 
   if (mode === 'desktop') {
-    view.webContents.disableDeviceEmulation()
-    view.webContents.setUserAgent('')
+    entry.view.webContents.disableDeviceEmulation()
+    entry.view.webContents.setUserAgent('')
   } else {
-    view.webContents.enableDeviceEmulation({
+    entry.view.webContents.enableDeviceEmulation({
       screenPosition: mode === 'mobile' ? 'mobile' : 'desktop',
       screenSize: { width: config.width, height: config.height },
       viewPosition: { x: 0, y: 0 },
@@ -112,28 +145,37 @@ export function setDevice(mode: DeviceMode): void {
       deviceScaleFactor: 2,
       scale: 1
     })
-    view.webContents.setUserAgent(config.userAgent)
+    entry.view.webContents.setUserAgent(config.userAgent)
   }
 }
 
-export function goBack(): void {
-  view?.webContents.goBack()
+export function goBack(tabId: string): void {
+  views.get(tabId)?.view.webContents.goBack()
 }
 
-export function goForward(): void {
-  view?.webContents.goForward()
+export function goForward(tabId: string): void {
+  views.get(tabId)?.view.webContents.goForward()
 }
 
-export function reload(): void {
-  view?.webContents.reload()
+export function reload(tabId: string): void {
+  views.get(tabId)?.view.webContents.reload()
 }
 
-export function destroyView(): void {
-  if (view && parentWindow && !parentWindow.isDestroyed()) {
-    parentWindow.contentView.removeChildView(view)
-    ;(view.webContents as Electron.WebContents & { destroy(): void }).destroy?.()
+export function destroyView(tabId: string): void {
+  const entry = views.get(tabId)
+  if (entry && parentWindow && !parentWindow.isDestroyed()) {
+    parentWindow.contentView.removeChildView(entry.view)
+    ;(entry.view.webContents as Electron.WebContents & { destroy(): void }).destroy?.()
   }
-  view = null
+  views.delete(tabId)
+  if (activeTabId === tabId) {
+    activeTabId = null
+  }
+}
+
+export function destroyAllViews(): void {
+  for (const tabId of [...views.keys()]) {
+    destroyView(tabId)
+  }
   parentWindow = null
-  pendingRequests.clear()
 }

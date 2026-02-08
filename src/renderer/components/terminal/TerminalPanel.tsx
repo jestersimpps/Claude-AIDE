@@ -85,19 +85,29 @@ export function TerminalPanel(): React.ReactElement {
         </button>
       </div>
 
-      <div style={{ flex: 1, minHeight: 0 }}>
-        {!activeTab ? (
+      <div style={{ flex: 1, minHeight: 0, position: 'relative' }}>
+        {projectTabs.length === 0 && (
           <div className="flex h-full items-center justify-center text-xs text-zinc-600">
             {activeProject ? 'Click + to open a terminal' : 'Select a project first'}
           </div>
-        ) : (
-          <TerminalInstance
-            key={activeTab.id}
-            tabId={activeTab.id}
-            projectId={activeTab.projectId}
-            cwd={activeTab.cwd}
-          />
         )}
+        {tabs.map((tab) => (
+          <div
+            key={tab.id}
+            style={{
+              position: 'absolute',
+              inset: 0,
+              display:
+                tab.projectId === activeProjectId && activeTabId === tab.id ? 'block' : 'none'
+            }}
+          >
+            <TerminalInstance
+              tabId={tab.id}
+              projectId={tab.projectId}
+              cwd={tab.cwd}
+            />
+          </div>
+        ))}
       </div>
     </div>
   )

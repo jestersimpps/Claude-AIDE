@@ -4,45 +4,63 @@ import { useProjectStore } from '@/stores/project-store'
 import { DeviceToolbar } from './DeviceToolbar'
 import { ConsolePanel } from './ConsolePanel'
 import { NetworkPanel } from './NetworkPanel'
-import { ArrowLeft, ArrowRight, RotateCw } from 'lucide-react'
+import { ArrowLeft, ArrowRight, RotateCw, Plus, X } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { ConsoleEntry, NetworkEntry } from '@/models/types'
 import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels'
 
+function getDomain(url: string): string {
+  try {
+    return new URL(url.startsWith('http') ? url : `https://${url}`).hostname
+  } catch {
+    return url || 'New Tab'
+  }
+}
+
 export function BrowserPanel(): React.ReactElement {
   const activeProjectId = useProjectStore((s) => s.activeProjectId)
-  const projectUrl = useBrowserStore(
-    (s) => (activeProjectId ? s.statePerProject[activeProjectId]?.url : '') || ''
-  )
-  const activeTab = useBrowserStore((s) => s.activeTab)
-  const { setUrl, setActiveTab, addConsoleEntry, addNetworkEntry } = useBrowserStore()
+  const tabs = useBrowserStore((s) => s.tabs)
+  const activeTabPerProject = useBrowserStore((s) => s.activeTabPerProject)
+  const devToolsTab = useBrowserStore((s) => s.devToolsTab)
+  const { createTab, closeTab, setActiveTab, setUrl, setDevToolsTab, addConsoleEntry, addNetworkEntry } =
+    useBrowserStore()
 
-  const [inputUrl, setInputUrl] = useState(projectUrl)
+  const projectTabs = tabs.filter((t) => t.projectId === activeProjectId)
+  const activeTabId = activeProjectId ? activeTabPerProject[activeProjectId] || null : null
+  const activeTab = projectTabs.find((t) => t.id === activeTabId)
+
+  const [inputUrl, setInputUrl] = useState(activeTab?.url || '')
   const viewportRef = useRef<HTMLDivElement>(null)
-  const viewCreated = useRef(false)
-  const hasNavigated = useRef(!!projectUrl)
+  const createdViews = useRef(new Set<string>())
+  const prevActiveTabRef = useRef<string | null>(null)
 
   useEffect(() => {
-    setInputUrl(projectUrl)
-    hasNavigated.current = !!projectUrl
+    setInputUrl(activeTab?.url || '')
+  }, [activeTabId])
 
-    if (projectUrl && viewCreated.current) {
-      window.api.browser.navigate(projectUrl)
-      requestAnimationFrame(updateBounds)
-    } else if (!projectUrl && viewCreated.current) {
-      window.api.browser.setBounds({ x: 0, y: 0, width: 0, height: 0 })
+  useEffect(() => {
+    if (!activeTabId || !createdViews.current.has(activeTabId)) {
+      if (prevActiveTabRef.current && createdViews.current.has(prevActiveTabRef.current)) {
+        window.api.browser.setBounds(prevActiveTabRef.current, { x: 0, y: 0, width: 0, height: 0 })
+      }
+      prevActiveTabRef.current = activeTabId
+      return
     }
-  }, [activeProjectId])
+
+    const bounds = getViewportBounds()
+    if (bounds) {
+      window.api.browser.setActiveTab(activeTabId, bounds)
+    }
+    prevActiveTabRef.current = activeTabId
+  }, [activeTabId])
 
   useEffect(() => {
-    const unsubConsole = window.api.browser.onConsole((entry) => {
-      const pid = useProjectStore.getState().activeProjectId
-      if (pid) addConsoleEntry(pid, entry as ConsoleEntry)
+    const unsubConsole = window.api.browser.onConsole((tabId: string, entry: unknown) => {
+      addConsoleEntry(tabId, entry as ConsoleEntry)
     })
 
-    const unsubNetwork = window.api.browser.onNetwork((entry) => {
-      const pid = useProjectStore.getState().activeProjectId
-      if (pid) addNetworkEntry(pid, entry as NetworkEntry)
+    const unsubNetwork = window.api.browser.onNetwork((tabId: string, entry: unknown) => {
+      addNetworkEntry(tabId, entry as NetworkEntry)
     })
 
     return () => {
@@ -51,16 +69,29 @@ export function BrowserPanel(): React.ReactElement {
     }
   }, [])
 
-  const updateBounds = useCallback(() => {
-    if (!viewportRef.current || !hasNavigated.current) return
+  const getViewportBounds = useCallback((): {
+    x: number
+    y: number
+    width: number
+    height: number
+  } | null => {
+    if (!viewportRef.current) return null
     const rect = viewportRef.current.getBoundingClientRect()
-    window.api.browser.setBounds({
+    return {
       x: Math.round(rect.x),
       y: Math.round(rect.y),
       width: Math.round(rect.width),
       height: Math.round(rect.height)
-    })
+    }
   }, [])
+
+  const updateBounds = useCallback(() => {
+    if (!activeTabId || !createdViews.current.has(activeTabId)) return
+    const bounds = getViewportBounds()
+    if (bounds) {
+      window.api.browser.setBounds(activeTabId, bounds)
+    }
+  }, [activeTabId, getViewportBounds])
 
   useEffect(() => {
     if (!viewportRef.current) return
@@ -70,39 +101,99 @@ export function BrowserPanel(): React.ReactElement {
   }, [updateBounds])
 
   const handleNavigate = (): void => {
-    if (!inputUrl.trim() || !activeProjectId) return
-    setUrl(activeProjectId, inputUrl)
+    if (!inputUrl.trim() || !activeTabId) return
+    setUrl(activeTabId, inputUrl)
 
-    if (!viewCreated.current) {
-      window.api.browser.create()
-      viewCreated.current = true
+    if (!createdViews.current.has(activeTabId)) {
+      window.api.browser.create(activeTabId)
+      createdViews.current.add(activeTabId)
     }
 
-    hasNavigated.current = true
-    window.api.browser.navigate(inputUrl)
+    window.api.browser.navigate(activeTabId, inputUrl)
     requestAnimationFrame(updateBounds)
   }
+
+  const handleNewTab = (): void => {
+    if (!activeProjectId) return
+    createTab(activeProjectId)
+  }
+
+  const handleCloseTab = (tabId: string): void => {
+    if (!activeProjectId) return
+    if (createdViews.current.has(tabId)) {
+      window.api.browser.destroy(tabId)
+      createdViews.current.delete(tabId)
+    }
+    closeTab(activeProjectId, tabId)
+  }
+
+  const handleSwitchTab = (tabId: string): void => {
+    if (!activeProjectId) return
+    setActiveTab(activeProjectId, tabId)
+  }
+
+  const hasNavigated = activeTab?.url ? createdViews.current.has(activeTabId!) : false
 
   return (
     <PanelGroup direction="vertical">
       <Panel defaultSize={70} minSize={30}>
         <div className="flex h-full flex-col">
+          <div className="flex items-center border-b border-zinc-800 bg-zinc-900/50">
+            <div className="flex flex-1 items-center gap-0.5 overflow-x-auto px-1">
+              {projectTabs.map((tab) => (
+                <div
+                  key={tab.id}
+                  className={cn(
+                    'group flex cursor-pointer items-center gap-1.5 rounded-t-md px-3 py-1.5 text-xs',
+                    activeTabId === tab.id
+                      ? 'bg-zinc-950 text-zinc-200'
+                      : 'text-zinc-500 hover:text-zinc-400'
+                  )}
+                  onClick={() => handleSwitchTab(tab.id)}
+                >
+                  <span className="max-w-[120px] truncate">
+                    {tab.url ? getDomain(tab.url) : 'New Tab'}
+                  </span>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      handleCloseTab(tab.id)
+                    }}
+                    className="hidden rounded p-0.5 hover:text-red-400 group-hover:block"
+                  >
+                    <X size={10} />
+                  </button>
+                </div>
+              ))}
+            </div>
+            <button
+              onClick={handleNewTab}
+              disabled={!activeProjectId}
+              className="rounded p-1.5 text-zinc-500 hover:bg-zinc-800 hover:text-zinc-300 disabled:opacity-30"
+            >
+              <Plus size={14} />
+            </button>
+          </div>
+
           <div className="flex items-center gap-2 border-b border-zinc-800 bg-zinc-900/50 px-2 py-1.5">
             <button
-              onClick={() => window.api.browser.back()}
-              className="rounded p-1 text-zinc-500 hover:bg-zinc-800 hover:text-zinc-300"
+              onClick={() => activeTabId && window.api.browser.back(activeTabId)}
+              disabled={!activeTabId}
+              className="rounded p-1 text-zinc-500 hover:bg-zinc-800 hover:text-zinc-300 disabled:opacity-30"
             >
               <ArrowLeft size={14} />
             </button>
             <button
-              onClick={() => window.api.browser.forward()}
-              className="rounded p-1 text-zinc-500 hover:bg-zinc-800 hover:text-zinc-300"
+              onClick={() => activeTabId && window.api.browser.forward(activeTabId)}
+              disabled={!activeTabId}
+              className="rounded p-1 text-zinc-500 hover:bg-zinc-800 hover:text-zinc-300 disabled:opacity-30"
             >
               <ArrowRight size={14} />
             </button>
             <button
-              onClick={() => window.api.browser.reload()}
-              className="rounded p-1 text-zinc-500 hover:bg-zinc-800 hover:text-zinc-300"
+              onClick={() => activeTabId && window.api.browser.reload(activeTabId)}
+              disabled={!activeTabId}
+              className="rounded p-1 text-zinc-500 hover:bg-zinc-800 hover:text-zinc-300 disabled:opacity-30"
             >
               <RotateCw size={14} />
             </button>
@@ -119,7 +210,8 @@ export function BrowserPanel(): React.ReactElement {
                 value={inputUrl}
                 onChange={(e) => setInputUrl(e.target.value)}
                 placeholder="Enter URL..."
-                className="w-full rounded-md bg-zinc-800 px-3 py-1 text-sm text-zinc-200 outline-none placeholder:text-zinc-600 focus:ring-1 focus:ring-zinc-600"
+                disabled={!activeTabId}
+                className="w-full rounded-md bg-zinc-800 px-3 py-1 text-sm text-zinc-200 outline-none placeholder:text-zinc-600 focus:ring-1 focus:ring-zinc-600 disabled:opacity-50"
               />
             </form>
 
@@ -127,10 +219,16 @@ export function BrowserPanel(): React.ReactElement {
           </div>
 
           <div ref={viewportRef} className="flex-1 bg-zinc-950">
-            {!hasNavigated.current && (
+            {!activeTab ? (
               <div className="flex h-full items-center justify-center text-xs text-zinc-600">
-                Enter a URL to preview
+                {activeProjectId ? 'Click + to open a browser tab' : 'Select a project first'}
               </div>
+            ) : (
+              !hasNavigated && (
+                <div className="flex h-full items-center justify-center text-xs text-zinc-600">
+                  Enter a URL to preview
+                </div>
+              )
             )}
           </div>
         </div>
@@ -142,10 +240,10 @@ export function BrowserPanel(): React.ReactElement {
         <div className="flex h-full flex-col bg-zinc-950">
           <div className="flex border-b border-zinc-800">
             <button
-              onClick={() => setActiveTab('console')}
+              onClick={() => setDevToolsTab('console')}
               className={cn(
                 'px-3 py-1.5 text-xs font-medium transition-colors',
-                activeTab === 'console'
+                devToolsTab === 'console'
                   ? 'border-b-2 border-zinc-400 text-zinc-200'
                   : 'text-zinc-500 hover:text-zinc-400'
               )}
@@ -153,10 +251,10 @@ export function BrowserPanel(): React.ReactElement {
               Console
             </button>
             <button
-              onClick={() => setActiveTab('network')}
+              onClick={() => setDevToolsTab('network')}
               className={cn(
                 'px-3 py-1.5 text-xs font-medium transition-colors',
-                activeTab === 'network'
+                devToolsTab === 'network'
                   ? 'border-b-2 border-zinc-400 text-zinc-200'
                   : 'text-zinc-500 hover:text-zinc-400'
               )}
@@ -165,7 +263,7 @@ export function BrowserPanel(): React.ReactElement {
             </button>
           </div>
           <div className="flex-1 overflow-hidden">
-            {activeTab === 'console' ? <ConsolePanel /> : <NetworkPanel />}
+            {devToolsTab === 'console' ? <ConsolePanel /> : <NetworkPanel />}
           </div>
         </div>
       </Panel>

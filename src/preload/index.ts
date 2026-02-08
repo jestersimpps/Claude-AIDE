@@ -48,22 +48,29 @@ const api = {
   },
 
   browser: {
-    create: () => ipcRenderer.invoke('browser:create'),
-    navigate: (url: string) => ipcRenderer.invoke('browser:navigate', url),
-    setBounds: (bounds: { x: number; y: number; width: number; height: number }) =>
-      ipcRenderer.invoke('browser:set-bounds', bounds),
-    setDevice: (mode: string) => ipcRenderer.invoke('browser:set-device', mode),
-    back: () => ipcRenderer.invoke('browser:back'),
-    forward: () => ipcRenderer.invoke('browser:forward'),
-    reload: () => ipcRenderer.invoke('browser:reload'),
-    destroy: () => ipcRenderer.invoke('browser:destroy'),
-    onConsole: (callback: (entry: unknown) => void) => {
-      const handler = (_event: Electron.IpcRendererEvent, entry: unknown) => callback(entry)
+    create: (tabId: string) => ipcRenderer.invoke('browser:create', tabId),
+    navigate: (tabId: string, url: string) => ipcRenderer.invoke('browser:navigate', tabId, url),
+    setBounds: (tabId: string, bounds: { x: number; y: number; width: number; height: number }) =>
+      ipcRenderer.invoke('browser:set-bounds', tabId, bounds),
+    setDevice: (tabId: string, mode: string) =>
+      ipcRenderer.invoke('browser:set-device', tabId, mode),
+    setActiveTab: (
+      tabId: string,
+      bounds: { x: number; y: number; width: number; height: number }
+    ) => ipcRenderer.invoke('browser:set-active-tab', tabId, bounds),
+    back: (tabId: string) => ipcRenderer.invoke('browser:back', tabId),
+    forward: (tabId: string) => ipcRenderer.invoke('browser:forward', tabId),
+    reload: (tabId: string) => ipcRenderer.invoke('browser:reload', tabId),
+    destroy: (tabId: string) => ipcRenderer.invoke('browser:destroy', tabId),
+    onConsole: (callback: (tabId: string, entry: unknown) => void) => {
+      const handler = (_event: Electron.IpcRendererEvent, tabId: string, entry: unknown) =>
+        callback(tabId, entry)
       ipcRenderer.on('browser:console', handler)
       return () => ipcRenderer.removeListener('browser:console', handler)
     },
-    onNetwork: (callback: (entry: unknown) => void) => {
-      const handler = (_event: Electron.IpcRendererEvent, entry: unknown) => callback(entry)
+    onNetwork: (callback: (tabId: string, entry: unknown) => void) => {
+      const handler = (_event: Electron.IpcRendererEvent, tabId: string, entry: unknown) =>
+        callback(tabId, entry)
       ipcRenderer.on('browser:network', handler)
       return () => ipcRenderer.removeListener('browser:network', handler)
     }

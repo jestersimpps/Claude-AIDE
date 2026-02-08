@@ -15,9 +15,14 @@ const EMPTY: ConsoleEntry[] = []
 
 export function ConsolePanel(): React.ReactElement {
   const activeProjectId = useProjectStore((s) => s.activeProjectId)
+  const activeTabId = useBrowserStore((s) =>
+    activeProjectId ? s.activeTabPerProject[activeProjectId] : null
+  )
   const consoleEntries = useBrowserStore((s) => {
     if (!activeProjectId) return EMPTY
-    return s.statePerProject[activeProjectId]?.consoleEntries ?? EMPTY
+    const tabId = s.activeTabPerProject[activeProjectId]
+    if (!tabId) return EMPTY
+    return s.tabs.find((t) => t.id === tabId)?.consoleEntries ?? EMPTY
   })
   const { clearConsole } = useBrowserStore()
 
@@ -26,7 +31,7 @@ export function ConsolePanel(): React.ReactElement {
       <div className="flex items-center justify-between border-b border-zinc-800 px-3 py-1">
         <span className="text-xs font-medium text-zinc-500">Console</span>
         <button
-          onClick={() => activeProjectId && clearConsole(activeProjectId)}
+          onClick={() => activeTabId && clearConsole(activeTabId)}
           className="rounded p-1 text-zinc-600 hover:text-zinc-400"
           title="Clear"
         >

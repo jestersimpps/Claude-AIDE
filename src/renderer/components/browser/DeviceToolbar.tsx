@@ -12,9 +12,15 @@ const devices: { mode: DeviceMode; icon: typeof Monitor; label: string }[] = [
 
 export function DeviceToolbar(): React.ReactElement {
   const activeProjectId = useProjectStore((s) => s.activeProjectId)
-  const deviceMode = useBrowserStore((s) =>
-    activeProjectId ? (s.statePerProject[activeProjectId]?.deviceMode ?? 'desktop') : 'desktop'
+  const activeTabId = useBrowserStore((s) =>
+    activeProjectId ? s.activeTabPerProject[activeProjectId] : null
   )
+  const deviceMode = useBrowserStore((s) => {
+    if (!activeProjectId) return 'desktop'
+    const tabId = s.activeTabPerProject[activeProjectId]
+    if (!tabId) return 'desktop'
+    return s.tabs.find((t) => t.id === tabId)?.deviceMode ?? 'desktop'
+  })
   const { setDeviceMode } = useBrowserStore()
 
   return (
@@ -22,13 +28,15 @@ export function DeviceToolbar(): React.ReactElement {
       {devices.map(({ mode, icon: Icon, label }) => (
         <button
           key={mode}
-          onClick={() => activeProjectId && setDeviceMode(activeProjectId, mode)}
+          onClick={() => activeTabId && setDeviceMode(activeTabId, mode)}
+          disabled={!activeTabId}
           title={label}
           className={cn(
             'rounded p-1.5 transition-colors',
             deviceMode === mode
               ? 'bg-zinc-700 text-zinc-200'
-              : 'text-zinc-500 hover:bg-zinc-800 hover:text-zinc-300'
+              : 'text-zinc-500 hover:bg-zinc-800 hover:text-zinc-300',
+            !activeTabId && 'opacity-30'
           )}
         >
           <Icon size={14} />

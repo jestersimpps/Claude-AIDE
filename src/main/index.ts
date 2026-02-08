@@ -7,7 +7,7 @@ import { registerBrowserHandlers } from '@main/ipc/browser'
 import { registerGitHandlers } from '@main/ipc/git'
 import { killAll } from '@main/services/pty-manager'
 import { stopWatching } from '@main/services/file-watcher'
-import { destroyView } from '@main/services/browser-view'
+import { destroyAllViews } from '@main/services/browser-view'
 
 let mainWindow: BrowserWindow | null = null
 
@@ -53,12 +53,12 @@ app.whenReady().then(() => {
 app.on('window-all-closed', () => {
   killAll()
   stopWatching()
-  destroyView()
+  destroyAllViews()
   if (process.platform !== 'darwin') app.quit()
 })
 
 app.on('before-quit', () => {
   killAll()
   stopWatching()
-  destroyView()
+  destroyAllViews()
 })

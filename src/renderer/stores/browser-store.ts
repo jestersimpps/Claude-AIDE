@@ -1,109 +1,111 @@
 import { create } from 'zustand'
-import type { DeviceMode, ConsoleEntry, NetworkEntry } from '@/models/types'
-
-interface ProjectBrowserState {
-  url: string
-  deviceMode: DeviceMode
-  consoleEntries: ConsoleEntry[]
-  networkEntries: NetworkEntry[]
-}
+import { v4 as uuid } from 'uuid'
+import type { BrowserTab, DeviceMode, ConsoleEntry, NetworkEntry } from '@/models/types'
 
 interface BrowserStore {
-  statePerProject: Record<string, ProjectBrowserState>
-  activeTab: 'console' | 'network'
-  setUrl: (projectId: string, url: string) => void
-  setDeviceMode: (projectId: string, mode: DeviceMode) => void
-  addConsoleEntry: (projectId: string, entry: ConsoleEntry) => void
-  addNetworkEntry: (projectId: string, entry: NetworkEntry) => void
-  setActiveTab: (tab: 'console' | 'network') => void
-  clearConsole: (projectId: string) => void
-  clearNetwork: (projectId: string) => void
+  tabs: BrowserTab[]
+  activeTabPerProject: Record<string, string>
+  devToolsTab: 'console' | 'network'
+  createTab: (projectId: string) => string
+  closeTab: (projectId: string, tabId: string) => void
+  setActiveTab: (projectId: string, tabId: string) => void
+  setUrl: (tabId: string, url: string) => void
+  setDeviceMode: (tabId: string, mode: DeviceMode) => void
+  addConsoleEntry: (tabId: string, entry: ConsoleEntry) => void
+  addNetworkEntry: (tabId: string, entry: NetworkEntry) => void
+  setDevToolsTab: (tab: 'console' | 'network') => void
+  clearConsole: (tabId: string) => void
+  clearNetwork: (tabId: string) => void
 }
 
-const defaultState: ProjectBrowserState = {
-  url: '',
-  deviceMode: 'desktop',
-  consoleEntries: [],
-  networkEntries: []
-}
+export const useBrowserStore = create<BrowserStore>((set, get) => ({
+  tabs: [],
+  activeTabPerProject: {},
+  devToolsTab: 'console',
 
-function getOrDefault(
-  map: Record<string, ProjectBrowserState>,
-  key: string
-): ProjectBrowserState {
-  return map[key] || defaultState
-}
-
-export const useBrowserStore = create<BrowserStore>((set) => ({
-  statePerProject: {},
-  activeTab: 'console',
-
-  setUrl: (projectId: string, url: string) => {
+  createTab: (projectId: string): string => {
+    const tabId = uuid()
+    const projectTabs = get().tabs.filter((t) => t.projectId === projectId)
+    const tab: BrowserTab = {
+      id: tabId,
+      title: `Tab ${projectTabs.length + 1}`,
+      projectId,
+      url: '',
+      deviceMode: 'desktop',
+      consoleEntries: [],
+      networkEntries: []
+    }
     set((state) => ({
-      statePerProject: {
-        ...state.statePerProject,
-        [projectId]: { ...getOrDefault(state.statePerProject, projectId), url }
-      }
+      tabs: [...state.tabs, tab],
+      activeTabPerProject: { ...state.activeTabPerProject, [projectId]: tabId }
     }))
+    return tabId
   },
 
-  setDeviceMode: (projectId: string, mode: DeviceMode) => {
-    set((state) => ({
-      statePerProject: {
-        ...state.statePerProject,
-        [projectId]: { ...getOrDefault(state.statePerProject, projectId), deviceMode: mode }
-      }
-    }))
-    window.api.browser.setDevice(mode)
-  },
-
-  addConsoleEntry: (projectId: string, entry: ConsoleEntry) => {
+  closeTab: (projectId: string, tabId: string) => {
     set((state) => {
-      const prev = getOrDefault(state.statePerProject, projectId)
-      return {
-        statePerProject: {
-          ...state.statePerProject,
-          [projectId]: {
-            ...prev,
-            consoleEntries: [...prev.consoleEntries.slice(-499), entry]
-          }
-        }
+      const tabs = state.tabs.filter((t) => t.id !== tabId)
+      const activeTabPerProject = { ...state.activeTabPerProject }
+
+      if (activeTabPerProject[projectId] === tabId) {
+        const remaining = tabs.filter((t) => t.projectId === projectId)
+        activeTabPerProject[projectId] = remaining[remaining.length - 1]?.id ?? ''
       }
+
+      return { tabs, activeTabPerProject }
     })
   },
 
-  addNetworkEntry: (projectId: string, entry: NetworkEntry) => {
-    set((state) => {
-      const prev = getOrDefault(state.statePerProject, projectId)
-      return {
-        statePerProject: {
-          ...state.statePerProject,
-          [projectId]: {
-            ...prev,
-            networkEntries: [...prev.networkEntries.slice(-499), entry]
-          }
-        }
-      }
-    })
-  },
-
-  setActiveTab: (tab: 'console' | 'network') => set({ activeTab: tab }),
-
-  clearConsole: (projectId: string) => {
+  setActiveTab: (projectId: string, tabId: string) => {
     set((state) => ({
-      statePerProject: {
-        ...state.statePerProject,
-        [projectId]: { ...getOrDefault(state.statePerProject, projectId), consoleEntries: [] }
-      }
+      activeTabPerProject: { ...state.activeTabPerProject, [projectId]: tabId }
     }))
   },
 
-  clearNetwork: (projectId: string) => {
+  setUrl: (tabId: string, url: string) => {
     set((state) => ({
-      statePerProject: {
-        ...state.statePerProject,
-        [projectId]: { ...getOrDefault(state.statePerProject, projectId), networkEntries: [] }
-      }
+      tabs: state.tabs.map((t) => (t.id === tabId ? { ...t, url } : t))
+    }))
+  },
+
+  setDeviceMode: (tabId: string, mode: DeviceMode) => {
+    set((state) => ({
+      tabs: state.tabs.map((t) => (t.id === tabId ? { ...t, deviceMode: mode } : t))
+    }))
+    window.api.browser.setDevice(tabId, mode)
+  },
+
+  addConsoleEntry: (tabId: string, entry: ConsoleEntry) => {
+    set((state) => ({
+      tabs: state.tabs.map((t) =>
+        t.id === tabId
+          ? { ...t, consoleEntries: [...t.consoleEntries.slice(-499), entry] }
+          : t
+      )
+    }))
+  },
+
+  addNetworkEntry: (tabId: string, entry: NetworkEntry) => {
+    set((state) => ({
+      tabs: state.tabs.map((t) =>
+        t.id === tabId
+          ? { ...t, networkEntries: [...t.networkEntries.slice(-499), entry] }
+          : t
+      )
+    }))
+  },
+
+  setDevToolsTab: (tab: 'console' | 'network') => set({ devToolsTab: tab }),
+
+  clearConsole: (tabId: string) => {
+    set((state) => ({
+      tabs: state.tabs.map((t) => (t.id === tabId ? { ...t, consoleEntries: [] } : t))
+    }))
+  },
+
+  clearNetwork: (tabId: string) => {
+    set((state) => ({
+      tabs: state.tabs.map((t) => (t.id === tabId ? { ...t, networkEntries: [] } : t))
     }))
   }
 }))
