@@ -4,6 +4,7 @@ import { useProjectStore } from '@/stores/project-store'
 import { DeviceToolbar } from './DeviceToolbar'
 import { ConsolePanel } from './ConsolePanel'
 import { NetworkPanel } from './NetworkPanel'
+import { DevTerminalsPanel } from './DevTerminalsPanel'
 import { ArrowLeft, ArrowRight, RotateCw, Plus, X } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { ConsoleEntry, NetworkEntry } from '@/models/types'
@@ -317,9 +318,22 @@ export function BrowserPanel(): React.ReactElement {
             >
               Network
             </button>
+            <button
+              onClick={() => setDevToolsTab('terminals')}
+              className={cn(
+                'px-3 py-1.5 text-xs font-medium transition-colors',
+                devToolsTab === 'terminals'
+                  ? 'border-b-2 border-zinc-400 text-zinc-200'
+                  : 'text-zinc-500 hover:text-zinc-400'
+              )}
+            >
+              Dev Terminals
+            </button>
           </div>
           <div className="flex-1 overflow-hidden">
-            {devToolsTab === 'console' ? <ConsolePanel /> : <NetworkPanel />}
+            {devToolsTab === 'console' && <ConsolePanel />}
+            {devToolsTab === 'network' && <NetworkPanel />}
+            {devToolsTab === 'terminals' && <DevTerminalsPanel />}
           </div>
         </div>
       </Panel>
