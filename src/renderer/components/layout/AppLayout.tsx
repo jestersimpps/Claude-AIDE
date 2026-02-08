@@ -99,7 +99,7 @@ export function AppLayout(): React.ReactElement {
                 {activeProjectId && (
                   <PanelGroup direction="horizontal">
                     <Panel defaultSize={25} minSize={15} maxSize={40}>
-                      <div className="h-full overflow-y-auto border-r border-zinc-800 bg-zinc-900/30">
+                      <div className="h-full overflow-hidden border-r border-zinc-800 bg-zinc-900/30">
                         <FileTree projectId={activeProjectId} />
                       </div>
                     </Panel>

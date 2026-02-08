@@ -3,7 +3,7 @@ import { useFileTreeStore } from '@/stores/filetree-store'
 import { useProjectStore } from '@/stores/project-store'
 import { useEditorStore } from '@/stores/editor-store'
 import { useGitStore } from '@/stores/git-store'
-import { ChevronRight, ChevronDown, File, Folder } from 'lucide-react'
+import { ChevronRight, ChevronDown, File, Folder, RefreshCw } from 'lucide-react'
 import type { FileNode, GitFileStatus } from '@/models/types'
 
 const GIT_STATUS_COLORS: Record<GitFileStatus, string> = {
@@ -128,11 +128,28 @@ export function FileTree({ projectId }: { projectId: string }): React.ReactEleme
     return <div className="p-4 text-center text-xs text-zinc-600">Loading...</div>
   }
 
+  const handleRefresh = (): void => {
+    loadTree(projectId, activeProject.path)
+    loadStatus(projectId, activeProject.path)
+  }
+
   return (
-    <div className="flex flex-col overflow-y-auto p-1">
-      {tree.children?.map((child) => (
-        <TreeNode key={child.path} node={child} depth={0} projectId={projectId} cwd={activeProject.path} />
-      ))}
+    <div className="flex h-full flex-col">
+      <div className="flex items-center justify-between border-b border-zinc-800 bg-zinc-900/50 px-3 py-1.5">
+        <span className="text-[11px] font-medium uppercase tracking-wide text-zinc-500">Explorer</span>
+        <button
+          onClick={handleRefresh}
+          className="rounded p-1 text-zinc-500 hover:bg-zinc-800 hover:text-zinc-300"
+          title="Refresh"
+        >
+          <RefreshCw size={12} />
+        </button>
+      </div>
+      <div className="flex-1 overflow-y-auto p-1">
+        {tree.children?.map((child) => (
+          <TreeNode key={child.path} node={child} depth={0} projectId={projectId} cwd={activeProject.path} />
+        ))}
+      </div>
     </div>
   )
 }
