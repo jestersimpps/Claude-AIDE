@@ -128,6 +128,7 @@ export function TerminalInstance({ tabId, projectId, cwd, initialCommand }: Term
 
       setTimeout(() => {
         fitAddon.fit()
+        terminal.scrollToBottom()
         terminal.focus()
         window.api.terminal.create(tabId, projectId, cwd, terminal.cols, terminal.rows)
         if (initialCommand) {
@@ -174,6 +175,13 @@ export function searchTerminal(tabId: string, query: string, direction: 'next' |
   return direction === 'next'
     ? entry.searchAddon.findNext(query)
     : entry.searchAddon.findPrevious(query)
+}
+
+export function focusTerminal(tabId: string): void {
+  const entry = terminalsMap.get(tabId)
+  if (!entry) return
+  entry.terminal.scrollToBottom()
+  entry.terminal.focus()
 }
 
 export function disposeTerminal(tabId: string): void {

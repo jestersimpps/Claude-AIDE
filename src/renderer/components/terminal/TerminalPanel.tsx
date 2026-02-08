@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { useTerminalStore } from '@/stores/terminal-store'
 import { useProjectStore } from '@/stores/project-store'
 import { useThemeStore } from '@/stores/theme-store'
-import { TerminalInstance, getTerminalInstance, disposeTerminal, applyThemeToAll, searchTerminal } from './TerminalInstance'
+import { TerminalInstance, getTerminalInstance, disposeTerminal, applyThemeToAll, searchTerminal, focusTerminal } from './TerminalInstance'
 import { Plus, X, ChevronUp, ChevronDown } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
@@ -52,6 +52,12 @@ export function TerminalPanel(): React.ReactElement {
   useEffect(() => {
     applyThemeToAll(theme)
   }, [theme])
+
+  useEffect(() => {
+    if (!activeTabId) return
+    const timer = setTimeout(() => focusTerminal(activeTabId), 50)
+    return () => clearTimeout(timer)
+  }, [activeTabId])
 
   useEffect(() => {
     if (activeProject) {

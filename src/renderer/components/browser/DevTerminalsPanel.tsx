@@ -1,7 +1,7 @@
 import { useEffect } from 'react'
 import { useDevTerminalStore } from '@/stores/dev-terminal-store'
 import { useProjectStore } from '@/stores/project-store'
-import { TerminalInstance, disposeTerminal } from '@/components/terminal/TerminalInstance'
+import { TerminalInstance, disposeTerminal, focusTerminal } from '@/components/terminal/TerminalInstance'
 import { Plus, X } from 'lucide-react'
 
 function getGridLayout(count: number): { cols: number; rows: number[] } {
@@ -94,6 +94,7 @@ export function DevTerminalsPanel(): React.ReactElement {
                     borderRight: colIdx < colCount - 1 ? '1px solid rgb(39 39 42)' : undefined,
                     borderBottom: rowIdx < layout.rows.length - 1 ? '1px solid rgb(39 39 42)' : undefined
                   }}
+                  onClick={() => focusTerminal(tab.id)}
                 >
                   <div className="flex items-center justify-between border-b border-zinc-800 bg-zinc-900/50 px-2 py-0.5">
                     <span className="text-[10px] text-zinc-500">{tab.title}</span>
