@@ -16,6 +16,12 @@ const api = {
       const handler = (_event: Electron.IpcRendererEvent, tree: unknown) => callback(tree)
       ipcRenderer.on('fs:tree-changed', handler)
       return () => ipcRenderer.removeListener('fs:tree-changed', handler)
+    },
+    onFileChanged: (callback: (path: string, content: string) => void) => {
+      const handler = (_event: Electron.IpcRendererEvent, path: string, content: string) =>
+        callback(path, content)
+      ipcRenderer.on('fs:file-changed', handler)
+      return () => ipcRenderer.removeListener('fs:file-changed', handler)
     }
   },
 

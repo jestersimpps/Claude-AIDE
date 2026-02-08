@@ -15,6 +15,7 @@ interface EditorStore {
   openFile: (projectId: string, path: string, name: string, cwd?: string, gitStatus?: GitFileStatus) => Promise<void>
   closeFile: (projectId: string, path: string) => void
   setActiveFile: (projectId: string, path: string) => void
+  updateFileContent: (filePath: string, content: string) => void
 }
 
 const EMPTY_STATE: ProjectEditorState = { openFiles: [], activeFilePath: null }
@@ -89,6 +90,23 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
           [projectId]: { ...prev, activeFilePath: path }
         }
       }
+    })
+  },
+
+  updateFileContent: (filePath: string, content: string) => {
+    set((s) => {
+      const updated = { ...s.statePerProject }
+      let changed = false
+      for (const [pid, state] of Object.entries(updated)) {
+        const idx = state.openFiles.findIndex((f) => f.path === filePath)
+        if (idx === -1) continue
+        if (state.openFiles[idx].content === content) continue
+        changed = true
+        const files = [...state.openFiles]
+        files[idx] = { ...files[idx], content }
+        updated[pid] = { ...state, openFiles: files }
+      }
+      return changed ? { statePerProject: updated } : s
     })
   }
 }))

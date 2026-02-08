@@ -1,3 +1,4 @@
+import { useEffect } from 'react'
 import Editor, { DiffEditor, type Monaco } from '@monaco-editor/react'
 import { useEditorStore } from '@/stores/editor-store'
 import { useThemeStore } from '@/stores/theme-store'
@@ -48,6 +49,12 @@ export function CodeEditor({ projectId }: { projectId: string }): React.ReactEle
   const { setActiveFile, closeFile } = useEditorStore()
 
   const activeFile = openFiles.find((f) => f.path === activeFilePath)
+
+  useEffect(() => {
+    return window.api.fs.onFileChanged((path, content) => {
+      useEditorStore.getState().updateFileContent(path, content)
+    })
+  }, [])
 
   return (
     <div className="flex h-full flex-col bg-zinc-950">
@@ -100,7 +107,7 @@ export function CodeEditor({ projectId }: { projectId: string }): React.ReactEle
           ) : (
             <Editor
               key={activeFile.path}
-              defaultValue={activeFile.content}
+              value={activeFile.content}
               language={detectLanguage(activeFile.name)}
               theme={MONACO_THEME_NAME[theme]}
               beforeMount={handleBeforeMount}

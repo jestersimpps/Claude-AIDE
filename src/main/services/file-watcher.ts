@@ -7,6 +7,7 @@ import type { FileNode } from '@main/models/types'
 
 let watcher: FSWatcher | null = null
 let currentRoot: string | null = null
+const fileDebounce = new Map<string, NodeJS.Timeout>()
 
 function loadGitignore(rootPath: string): Ignore {
   const ig = ignore()
@@ -81,10 +82,28 @@ export function startWatching(rootPath: string, win: BrowserWindow): void {
     persistent: true
   })
 
-  watcher.on('all', () => {
-    if (!win.isDestroyed() && currentRoot) {
-      const tree = readTree(currentRoot)
-      win.webContents.send('fs:tree-changed', tree)
+  watcher.on('all', (event: string, filePath: string) => {
+    if (win.isDestroyed() || !currentRoot) return
+
+    const tree = readTree(currentRoot)
+    win.webContents.send('fs:tree-changed', tree)
+
+    if (event === 'change') {
+      const existing = fileDebounce.get(filePath)
+      if (existing) clearTimeout(existing)
+      fileDebounce.set(
+        filePath,
+        setTimeout(() => {
+          fileDebounce.delete(filePath)
+          if (win.isDestroyed()) return
+          try {
+            const content = fs.readFileSync(filePath, 'utf-8')
+            win.webContents.send('fs:file-changed', filePath, content)
+          } catch {
+            // file may be temporarily locked during write
+          }
+        }, 150)
+      )
     }
   })
 }
@@ -94,6 +113,8 @@ export function readFileContents(filePath: string): string {
 }
 
 export function stopWatching(): void {
+  for (const timer of fileDebounce.values()) clearTimeout(timer)
+  fileDebounce.clear()
   if (watcher) {
     watcher.close()
     watcher = null
