@@ -4,6 +4,7 @@ import { FileTree } from '@/components/sidebar/FileTree'
 import { TerminalPanel } from '@/components/terminal/TerminalPanel'
 import { BrowserPanel } from '@/components/browser/BrowserPanel'
 import { CodeEditor } from '@/components/editor/CodeEditor'
+import { DevTerminalsPanel } from '@/components/browser/DevTerminalsPanel'
 import { useEditorStore } from '@/stores/editor-store'
 import { useProjectStore } from '@/stores/project-store'
 import { GitTree } from '@/components/git/GitTree'
@@ -91,26 +92,34 @@ export function AppLayout(): React.ReactElement {
                 Editor
               </button>
             </div>
-            <div className="flex-1 min-h-0 relative">
-              <div className={cn('absolute inset-0', centerTab === 'browser' ? 'z-10' : 'z-0 invisible')}>
-                <BrowserPanel />
-              </div>
-              <div className={cn('absolute inset-0', centerTab === 'editor' ? 'z-10' : 'z-0 invisible')}>
-                {activeProjectId && (
-                  <PanelGroup direction="horizontal">
-                    <Panel defaultSize={25} minSize={15} maxSize={40}>
-                      <div className="h-full overflow-hidden border-r border-zinc-800 bg-zinc-900/30">
-                        <FileTree projectId={activeProjectId} />
-                      </div>
-                    </Panel>
-                    <PanelResizeHandle className="w-1 bg-zinc-800 hover:bg-zinc-700 transition-colors" />
-                    <Panel defaultSize={75} minSize={30}>
-                      <CodeEditor projectId={activeProjectId} />
-                    </Panel>
-                  </PanelGroup>
-                )}
-              </div>
-            </div>
+            <PanelGroup direction="vertical" className="flex-1 min-h-0">
+              <Panel defaultSize={70} minSize={20}>
+                <div className="h-full relative">
+                  <div className={cn('absolute inset-0', centerTab === 'browser' ? 'z-10' : 'z-0 invisible')}>
+                    <BrowserPanel />
+                  </div>
+                  <div className={cn('absolute inset-0', centerTab === 'editor' ? 'z-10' : 'z-0 invisible')}>
+                    {activeProjectId && (
+                      <PanelGroup direction="horizontal">
+                        <Panel defaultSize={25} minSize={15} maxSize={40}>
+                          <div className="h-full overflow-hidden border-r border-zinc-800 bg-zinc-900/30">
+                            <FileTree projectId={activeProjectId} />
+                          </div>
+                        </Panel>
+                        <PanelResizeHandle className="w-1 bg-zinc-800 hover:bg-zinc-700 transition-colors" />
+                        <Panel defaultSize={75} minSize={30}>
+                          <CodeEditor projectId={activeProjectId} />
+                        </Panel>
+                      </PanelGroup>
+                    )}
+                  </div>
+                </div>
+              </Panel>
+              <PanelResizeHandle className="h-1 bg-zinc-800 hover:bg-zinc-700 transition-colors" />
+              <Panel defaultSize={30} minSize={10}>
+                <DevTerminalsPanel />
+              </Panel>
+            </PanelGroup>
           </div>
         </Panel>
 

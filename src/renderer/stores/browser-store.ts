@@ -5,7 +5,7 @@ import type { BrowserTab, DeviceMode, ConsoleEntry, NetworkEntry } from '@/model
 interface BrowserStore {
   tabs: BrowserTab[]
   activeTabPerProject: Record<string, string>
-  devToolsTab: 'console' | 'network' | 'terminals'
+  devToolsTab: 'console' | 'network'
   createTab: (projectId: string) => string
   closeTab: (projectId: string, tabId: string) => void
   setActiveTab: (projectId: string, tabId: string) => void
@@ -13,7 +13,7 @@ interface BrowserStore {
   setDeviceMode: (tabId: string, mode: DeviceMode) => void
   addConsoleEntry: (tabId: string, entry: ConsoleEntry) => void
   addNetworkEntry: (tabId: string, entry: NetworkEntry) => void
-  setDevToolsTab: (tab: 'console' | 'network' | 'terminals') => void
+  setDevToolsTab: (tab: 'console' | 'network') => void
   clearConsole: (tabId: string) => void
   clearNetwork: (tabId: string) => void
 }
@@ -97,7 +97,7 @@ export const useBrowserStore = create<BrowserStore>((set, get) => ({
     }))
   },
 
-  setDevToolsTab: (tab: 'console' | 'network' | 'terminals') => set({ devToolsTab: tab }),
+  setDevToolsTab: (tab: 'console' | 'network') => set({ devToolsTab: tab }),
 
   clearConsole: (tabId: string) => {
     set((state) => ({

@@ -128,7 +128,11 @@ export function TerminalInstance({ tabId, projectId, cwd, initialCommand }: Term
 
       const unsubData = window.api.terminal.onData((incomingTabId: string, data: string) => {
         if (incomingTabId === tabId) {
-          terminal.write(data)
+          const buf = terminal.buffer.active
+          const atBottom = buf.baseY - buf.viewportY <= 1
+          terminal.write(data, () => {
+            if (atBottom) terminal.scrollToBottom()
+          })
         }
       })
       terminalsMap.get(tabId)!.unsubData = unsubData
