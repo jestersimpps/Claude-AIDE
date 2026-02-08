@@ -1,7 +1,9 @@
 import { useEffect, useMemo } from 'react'
 import { useGitStore } from '@/stores/git-store'
 import { useProjectStore } from '@/stores/project-store'
-import { GitBranch as GitBranchIcon, RefreshCw } from 'lucide-react'
+import { useTerminalStore } from '@/stores/terminal-store'
+import { getTerminalInstance } from '@/components/terminal/TerminalInstance'
+import { GitBranch as GitBranchIcon, GitCommitHorizontal, RefreshCw } from 'lucide-react'
 import type { GitCommit } from '@/models/types'
 
 const LANE_COLORS = [
@@ -206,6 +208,8 @@ export function GitTree(): React.ReactElement {
     return id ? s.projects.find((p) => p.id === id) : undefined
   })
 
+  const activeTerminalTabId = useTerminalStore((s) => activeProjectId ? s.activeTabPerProject[activeProjectId] : undefined)
+
   const isRepo = useGitStore((s) => activeProjectId ? s.isRepoPerProject[activeProjectId] : false)
   const commits = useGitStore((s) => activeProjectId ? s.commitsPerProject[activeProjectId] : undefined)
   const branches = useGitStore((s) => activeProjectId ? s.branchesPerProject[activeProjectId] : undefined)
@@ -247,12 +251,34 @@ export function GitTree(): React.ReactElement {
             </span>
           )}
         </div>
-        <button
-          onClick={() => activeProject && loadGitData(activeProject.id, activeProject.path)}
-          className="rounded p-1 text-zinc-500 hover:bg-zinc-800 hover:text-zinc-300"
-        >
-          <RefreshCw size={12} />
-        </button>
+        <div className="flex items-center gap-0.5">
+          <button
+            disabled={!activeTerminalTabId}
+            onClick={() => {
+              if (!activeTerminalTabId) return
+              const entry = getTerminalInstance(activeTerminalTabId)
+              if (!entry) return
+              entry.terminal.paste('/commit')
+              setTimeout(() => {
+                const textarea = entry.terminal.textarea
+                if (!textarea) return
+                textarea.focus()
+                textarea.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', code: 'Enter', keyCode: 13, bubbles: true }))
+              }, 100)
+            }}
+            className="rounded p-1 text-zinc-500 hover:bg-zinc-800 hover:text-zinc-300 disabled:opacity-30 disabled:pointer-events-none"
+            title="Commit"
+          >
+            <GitCommitHorizontal size={12} />
+          </button>
+          <button
+            onClick={() => activeProject && loadGitData(activeProject.id, activeProject.path)}
+            className="rounded p-1 text-zinc-500 hover:bg-zinc-800 hover:text-zinc-300"
+            title="Refresh"
+          >
+            <RefreshCw size={12} />
+          </button>
+        </div>
       </div>
 
       <div className="flex-1 overflow-auto">
