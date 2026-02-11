@@ -27,7 +27,11 @@ The editor is still there when you need to peek at something, but it's intention
 - **Integrated browser** — per-project browser tabs for localhost, dashboards, docs — with device mode, console, and network panels
 - **Code editor** — Monaco editor available when you need it, intentionally secondary
 - **Git visualization** — commit graph with branch lanes
-- **Light/dark theme** — GitHub-inspired editor themes that match the app
+- **11 themes with dark/light variants** — GitHub, Dracula, Catppuccin, Nord, Monokai, Gruvbox, Tokyo Night, One Dark Pro, Material, Pastel, Psychedelic — with a built-in theme picker
+- **Device emulation** — preview your app in mobile and tablet viewports directly in the browser panel
+- **Network inspector** — expandable request details with headers, type, and accurate response sizes
+- **File drag-and-drop** — drag files from your system into terminals for quick context
+- **Terminal search** — search highlights, clear/restart buttons, scroll-to-bottom, and tooltips on all controls
 
 ## Tech Stack
 
@@ -45,10 +49,9 @@ npm run dev
 
 ## Still on the roadmap
 
-- Drag and drop files into Claude terminals (yes there's multiple per project)
 - One-button collapse for dev terminal and console to maximize browser preview
 - Console errors with "send to Claude" button
-- Detailed network call inspection with "send to Claude"
+- Network call details with "send to Claude"
 - Click files and folders in the project tree to send to Claude for easy context input
 - Give Claude access to the webview browser so it can manipulate and test the preview
 - Many more ideas
