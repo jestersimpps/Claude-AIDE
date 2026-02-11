@@ -1,5 +1,4 @@
 import { create } from 'zustand'
-import { persist } from 'zustand/middleware'
 import type { Layout } from 'react-grid-layout'
 
 export type PanelId = 'browser-editor' | 'dev-tools' | 'dev-terminals' | 'git' | 'claude-terminals'
@@ -45,45 +44,40 @@ function ensureComplete(layout: Layout[]): Layout[] {
   return missing.length > 0 ? [...layout, ...missing] : layout
 }
 
-export const useLayoutStore = create<LayoutState>()(
-  persist(
-    (set, get) => ({
-      layoutsPerProject: {},
-      locksPerProject: {},
-      resetVersion: 0,
+export const useLayoutStore = create<LayoutState>()((set, get) => ({
+  layoutsPerProject: {},
+  locksPerProject: {},
+  resetVersion: 0,
 
-      getLayout: (projectId: string) => {
-        return ensureComplete(get().layoutsPerProject[projectId] ?? defaultLayout)
-      },
+  getLayout: (projectId: string) => {
+    return ensureComplete(get().layoutsPerProject[projectId] ?? defaultLayout)
+  },
 
-      isLocked: (projectId: string, panelId: PanelId) => {
-        return get().locksPerProject[projectId]?.[panelId] ?? false
-      },
+  isLocked: (projectId: string, panelId: PanelId) => {
+    return get().locksPerProject[projectId]?.[panelId] ?? false
+  },
 
-      saveLayout: (projectId: string, newLayout: Layout[]) => {
-        set({
-          layoutsPerProject: { ...get().layoutsPerProject, [projectId]: newLayout }
-        })
-      },
+  saveLayout: (projectId: string, newLayout: Layout[]) => {
+    set({
+      layoutsPerProject: { ...get().layoutsPerProject, [projectId]: newLayout }
+    })
+  },
 
-      togglePanelLock: (projectId: string, id: PanelId) => {
-        const current = get().locksPerProject[projectId] ?? {}
-        set({
-          locksPerProject: {
-            ...get().locksPerProject,
-            [projectId]: { ...current, [id]: !current[id] }
-          }
-        })
-      },
-
-      resetLayout: (projectId: string) => {
-        const lpp = { ...get().layoutsPerProject }
-        const lkp = { ...get().locksPerProject }
-        delete lpp[projectId]
-        delete lkp[projectId]
-        set({ layoutsPerProject: lpp, locksPerProject: lkp, resetVersion: get().resetVersion + 1 })
+  togglePanelLock: (projectId: string, id: PanelId) => {
+    const current = get().locksPerProject[projectId] ?? {}
+    set({
+      locksPerProject: {
+        ...get().locksPerProject,
+        [projectId]: { ...current, [id]: !current[id] }
       }
-    }),
-    { name: 'vibecoder-layout-v4' }
-  )
-)
+    })
+  },
+
+  resetLayout: (projectId: string) => {
+    const lpp = { ...get().layoutsPerProject }
+    const lkp = { ...get().locksPerProject }
+    delete lpp[projectId]
+    delete lkp[projectId]
+    set({ layoutsPerProject: lpp, locksPerProject: lkp, resetVersion: get().resetVersion + 1 })
+  }
+}))

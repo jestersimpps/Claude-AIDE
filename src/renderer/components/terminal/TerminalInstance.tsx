@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { Terminal, type ITheme } from '@xterm/xterm'
 import { FitAddon } from '@xterm/addon-fit'
 import { WebglAddon } from '@xterm/addon-webgl'
@@ -75,8 +75,66 @@ export function applyThemeToAll(theme: 'dark' | 'light'): void {
   })
 }
 
+function shellEscape(path: string): string {
+  if (/[^a-zA-Z0-9_./:@~=-]/.test(path)) {
+    return "'" + path.replace(/'/g, "'\\''") + "'"
+  }
+  return path
+}
+
 export function TerminalInstance({ tabId, projectId, cwd, initialCommand }: TerminalInstanceProps): React.ReactElement {
   const containerRef = useRef<HTMLDivElement>(null)
+  const [isDragOver, setIsDragOver] = useState(false)
+  const dragCounter = useRef(0)
+
+  const handleDragOver = useCallback((e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault()
+    e.stopPropagation()
+    e.dataTransfer.dropEffect = 'copy'
+  }, [])
+
+  const handleDragEnter = useCallback((e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault()
+    e.stopPropagation()
+    dragCounter.current++
+    if (e.dataTransfer.types.includes('Files')) {
+      setIsDragOver(true)
+    }
+  }, [])
+
+  const handleDragLeave = useCallback((e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault()
+    e.stopPropagation()
+    dragCounter.current--
+    if (dragCounter.current === 0) {
+      setIsDragOver(false)
+    }
+  }, [])
+
+  const handleDrop = useCallback((e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault()
+    e.stopPropagation()
+    dragCounter.current = 0
+    setIsDragOver(false)
+
+    const files = e.dataTransfer.files
+    if (files.length === 0) return
+
+    const paths: string[] = []
+    for (let i = 0; i < files.length; i++) {
+      const filePath = (files[i] as File & { path: string }).path
+      if (filePath) {
+        paths.push(shellEscape(filePath))
+      }
+    }
+
+    if (paths.length > 0) {
+      const entry = terminalsMap.get(tabId)
+      if (entry) {
+        entry.terminal.paste(paths.join(' '))
+      }
+    }
+  }, [tabId])
 
   useEffect(() => {
     const el = containerRef.current
@@ -173,7 +231,19 @@ export function TerminalInstance({ tabId, projectId, cwd, initialCommand }: Term
   return (
     <div
       ref={containerRef}
-      style={{ width: '100%', height: '100%', overflow: 'hidden' }}
+      onDragOver={handleDragOver}
+      onDragEnter={handleDragEnter}
+      onDragLeave={handleDragLeave}
+      onDrop={handleDrop}
+      style={{
+        width: '100%',
+        height: '100%',
+        overflow: 'hidden',
+        outline: isDragOver ? '2px solid rgba(96, 165, 250, 0.7)' : 'none',
+        outlineOffset: '-2px',
+        backgroundColor: isDragOver ? 'rgba(96, 165, 250, 0.05)' : undefined,
+        transition: 'outline 150ms ease, background-color 150ms ease'
+      }}
     />
   )
 }
