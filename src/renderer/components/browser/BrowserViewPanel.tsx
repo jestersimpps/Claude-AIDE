@@ -430,24 +430,33 @@ function WebviewTab({ tabId, url, projectId, isActive, deviceMode, onSetup }: We
         dims && 'flex items-center justify-center bg-zinc-950'
       )}
     >
-      <webview
-        ref={webviewRef}
-        src={initialUrl.current}
-        style={dims ? {
-          width: dims.width,
-          height: dims.height,
-          transform: `scale(${scale})`,
-          transformOrigin: 'center center'
-        } : undefined}
-        className={cn(
-          dims
-            ? 'rounded-lg border border-zinc-700 shadow-2xl'
-            : 'h-full w-full'
-        )}
-        // @ts-expect-error webview attributes not in React types
-        allowpopups="true"
-        partition={`persist:project-${projectId}`}
-      />
+      {dims ? (
+        <div style={{ width: dims.width * scale, height: dims.height * scale, overflow: 'hidden', borderRadius: 8 }}>
+          <webview
+            ref={webviewRef}
+            src={initialUrl.current}
+            style={{
+              width: dims.width,
+              height: dims.height,
+              transform: `scale(${scale})`,
+              transformOrigin: 'top left'
+            }}
+            className="rounded-lg border border-zinc-700 shadow-2xl"
+            // @ts-expect-error webview attributes not in React types
+            allowpopups="true"
+            partition={`persist:project-${projectId}`}
+          />
+        </div>
+      ) : (
+        <webview
+          ref={webviewRef}
+          src={initialUrl.current}
+          className="h-full w-full"
+          // @ts-expect-error webview attributes not in React types
+          allowpopups="true"
+          partition={`persist:project-${projectId}`}
+        />
+      )}
     </div>
   )
 }
