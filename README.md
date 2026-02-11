@@ -18,6 +18,8 @@ The editor is still there when you need to peek at something, but it's intention
 
 ![Integrated browser with devtools console, Claude terminal, and dev terminals](docs/screenshot-browser.png)
 
+![Light mode on superultrawide with network panel, browser preview, and Claude terminal](docs/screenshot-light-ultrawide.png)
+
 ## Features
 
 - **Multi-project workspace** — switch between projects in one click, all state travels with you (terminals, browser tabs, file tree)
