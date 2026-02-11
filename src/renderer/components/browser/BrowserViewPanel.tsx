@@ -388,11 +388,6 @@ interface WebviewTabProps {
   onSetup: (tabId: string, webview: Electron.WebviewTag) => () => void
 }
 
-const FRAME = {
-  mobile: { bezel: 10, radius: 68, statusBar: 54, homeBar: 28 },
-  ipad: { bezel: 12, radius: 36, statusBar: 0, homeBar: 20 },
-} as const
-
 function WebviewTab({ tabId, url, projectId, isActive, deviceMode, onSetup }: WebviewTabProps): React.ReactElement {
   const webviewRef = useRef<Electron.WebviewTag>(null)
   const containerRef = useRef<HTMLDivElement>(null)
@@ -402,47 +397,29 @@ function WebviewTab({ tabId, url, projectId, isActive, deviceMode, onSetup }: We
   useEffect(() => {
     const webview = webviewRef.current
     if (!webview) return
-    const cleanup = onSetup(tabId, webview)
-
-    const statusBar = deviceMode === 'mobile' ? FRAME.mobile.statusBar : 0
-    if (statusBar > 0) {
-      const pushIframe = (): void => {
-        const iframe = webview.shadowRoot?.querySelector('iframe')
-        if (!iframe) return
-        iframe.style.marginTop = `${statusBar}px`
-        iframe.style.height = `calc(100% - ${statusBar}px)`
-      }
-      pushIframe()
-      webview.addEventListener('dom-ready', pushIframe)
-      return () => {
-        cleanup?.()
-        webview.removeEventListener('dom-ready', pushIframe)
-      }
-    }
-    return cleanup
-  }, [tabId, deviceMode])
+    return onSetup(tabId, webview)
+  }, [tabId])
 
   const dims = DEVICE_DIMENSIONS[deviceMode]
-  const frame = deviceMode !== 'desktop' ? FRAME[deviceMode] : null
 
   useEffect(() => {
-    if (!dims || !frame || !containerRef.current) {
+    if (!dims || !containerRef.current) {
       setScale(1)
       return
     }
     const container = containerRef.current
-    const totalW = dims.width + frame.bezel * 2
-    const totalH = dims.height + frame.bezel * 2
-    const update = (): void => {
-      const r = container.getBoundingClientRect()
-      const pad = 24
-      setScale(Math.min((r.width - pad) / totalW, (r.height - pad) / totalH, 1))
+    const updateScale = (): void => {
+      const rect = container.getBoundingClientRect()
+      const padding = 32
+      const scaleX = (rect.width - padding) / dims.width
+      const scaleY = (rect.height - padding) / dims.height
+      setScale(Math.min(scaleX, scaleY, 1))
     }
-    const observer = new ResizeObserver(update)
+    const observer = new ResizeObserver(updateScale)
     observer.observe(container)
-    update()
+    updateScale()
     return () => observer.disconnect()
-  }, [deviceMode, dims, frame])
+  }, [deviceMode, dims])
 
   return (
     <div
@@ -453,89 +430,24 @@ function WebviewTab({ tabId, url, projectId, isActive, deviceMode, onSetup }: We
         dims && 'flex items-center justify-center bg-zinc-950'
       )}
     >
-      {dims && frame ? (
-        <div style={{
+      <webview
+        ref={webviewRef}
+        src={initialUrl.current}
+        style={dims ? {
+          width: dims.width,
+          height: dims.height,
           transform: `scale(${scale})`,
-          transformOrigin: 'center center',
-          filter: 'drop-shadow(0 20px 40px rgba(0,0,0,0.5)) drop-shadow(0 8px 16px rgba(0,0,0,0.3))',
-        }}>
-          <div style={{
-            width: dims.width + frame.bezel * 2,
-            height: dims.height + frame.bezel * 2,
-            borderRadius: frame.radius,
-            background: '#1c1c1e',
-            position: 'relative',
-            overflow: 'hidden',
-          }}>
-            <div style={{
-              position: 'absolute',
-              top: frame.bezel,
-              left: frame.bezel,
-              width: dims.width,
-              height: dims.height,
-              borderRadius: frame.radius - frame.bezel,
-              overflow: 'hidden',
-              display: 'flex',
-              flexDirection: 'column',
-            }}>
-              {frame.statusBar > 0 && (
-                <div style={{
-                  position: 'absolute', top: 0, left: 0, right: 0,
-                  height: frame.statusBar, zIndex: 2,
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                }}>
-                  <div style={{
-                    width: 126, height: 36, borderRadius: 20,
-                    background: '#1c1c1e',
-                  }} />
-                </div>
-              )}
-              <webview
-                ref={webviewRef}
-                src={initialUrl.current}
-                style={{ width: '100%', height: '100%', display: 'block' }}
-                // @ts-expect-error webview attributes not in React types
-                allowpopups="true"
-                partition={`persist:project-${projectId}`}
-              />
-              {frame.homeBar > 0 && (
-                <div style={{
-                  position: 'absolute', bottom: 8, left: '50%',
-                  transform: 'translateX(-50%)',
-                  width: deviceMode === 'mobile' ? 134 : 180,
-                  height: 5, borderRadius: 3, zIndex: 2,
-                  background: 'rgba(255,255,255,0.3)',
-                }} />
-              )}
-            </div>
-            {deviceMode === 'mobile' && (
-              <>
-                <div style={{ position: 'absolute', right: -2, top: 180, width: 3, height: 80, borderRadius: '0 2px 2px 0', background: '#333' }} />
-                <div style={{ position: 'absolute', left: -2, top: 130, width: 3, height: 24, borderRadius: '2px 0 0 2px', background: '#333' }} />
-                <div style={{ position: 'absolute', left: -2, top: 164, width: 3, height: 36, borderRadius: '2px 0 0 2px', background: '#333' }} />
-                <div style={{ position: 'absolute', left: -2, top: 210, width: 3, height: 36, borderRadius: '2px 0 0 2px', background: '#333' }} />
-              </>
-            )}
-            {deviceMode === 'ipad' && (
-              <div style={{
-                position: 'absolute', top: frame.bezel / 2, left: '50%',
-                transform: 'translateX(-50%)',
-                width: 8, height: 8, borderRadius: '50%',
-                background: '#2c2c2e',
-              }} />
-            )}
-          </div>
-        </div>
-      ) : (
-        <webview
-          ref={webviewRef}
-          src={initialUrl.current}
-          className="h-full w-full"
-          // @ts-expect-error webview attributes not in React types
-          allowpopups="true"
-          partition={`persist:project-${projectId}`}
-        />
-      )}
+          transformOrigin: 'center center'
+        } : undefined}
+        className={cn(
+          dims
+            ? 'rounded-lg border border-zinc-700 shadow-2xl'
+            : 'h-full w-full'
+        )}
+        // @ts-expect-error webview attributes not in React types
+        allowpopups="true"
+        partition={`persist:project-${projectId}`}
+      />
     </div>
   )
 }
