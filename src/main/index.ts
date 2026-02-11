@@ -1,4 +1,4 @@
-import { app, BrowserWindow, session, shell } from 'electron'
+import { app, BrowserWindow, Menu, session, shell } from 'electron'
 import path from 'path'
 import { registerProjectHandlers } from '@main/ipc/projects'
 import { registerFilesystemHandlers } from '@main/ipc/filesystem'
@@ -70,8 +70,149 @@ registerBrowserHandlers()
 registerGitHandlers()
 registerPasswordHandlers()
 
+function buildMenu(): Electron.MenuItemConstructorOptions[] {
+  const isMac = process.platform === 'darwin'
+
+  const appMenu: Electron.MenuItemConstructorOptions = {
+    label: 'VibeCoder',
+    submenu: [
+      { role: 'about', label: 'About VibeCoder' },
+      { type: 'separator' },
+      {
+        label: 'Settings...',
+        accelerator: 'CmdOrCtrl+,',
+        click: () => mainWindow?.webContents.send('menu:action', 'settings')
+      },
+      { type: 'separator' },
+      { role: 'hide', label: 'Hide VibeCoder' },
+      { role: 'hideOthers' },
+      { role: 'unhide' },
+      { type: 'separator' },
+      { role: 'quit', label: 'Quit VibeCoder' }
+    ]
+  }
+
+  const fileMenu: Electron.MenuItemConstructorOptions = {
+    label: 'File',
+    submenu: [
+      {
+        label: 'New Project',
+        accelerator: 'CmdOrCtrl+N',
+        click: () => mainWindow?.webContents.send('menu:action', 'new-project')
+      },
+      {
+        label: 'Close Project',
+        accelerator: 'CmdOrCtrl+W',
+        click: () => mainWindow?.webContents.send('menu:action', 'close-project')
+      },
+      { type: 'separator' },
+      {
+        label: 'Close Window',
+        accelerator: 'CmdOrCtrl+Shift+W',
+        click: () => mainWindow?.close()
+      }
+    ]
+  }
+
+  const editMenu: Electron.MenuItemConstructorOptions = {
+    label: 'Edit',
+    submenu: [
+      { role: 'undo' },
+      { role: 'redo' },
+      { type: 'separator' },
+      { role: 'cut' },
+      { role: 'copy' },
+      { role: 'paste' },
+      { role: 'selectAll' }
+    ]
+  }
+
+  const viewMenu: Electron.MenuItemConstructorOptions = {
+    label: 'View',
+    submenu: [
+      {
+        label: 'Toggle Browser',
+        accelerator: 'CmdOrCtrl+1',
+        click: () => mainWindow?.webContents.send('menu:action', 'center-tab-browser')
+      },
+      {
+        label: 'Toggle Editor',
+        accelerator: 'CmdOrCtrl+2',
+        click: () => mainWindow?.webContents.send('menu:action', 'center-tab-editor')
+      },
+      { type: 'separator' },
+      {
+        label: 'Reload Browser',
+        accelerator: 'CmdOrCtrl+R',
+        click: () => mainWindow?.webContents.send('browser:reload')
+      },
+      { type: 'separator' },
+      { role: 'toggleDevTools' },
+      {
+        label: 'Toggle App Developer Tools',
+        accelerator: 'CmdOrCtrl+Shift+I',
+        click: () => mainWindow?.webContents.toggleDevTools()
+      },
+      { type: 'separator' },
+      {
+        label: 'Actual Size',
+        accelerator: 'CmdOrCtrl+0',
+        click: () => mainWindow?.webContents.setZoomLevel(0)
+      },
+      {
+        label: 'Zoom In',
+        accelerator: 'CmdOrCtrl+=',
+        click: () => {
+          const wc = mainWindow?.webContents
+          if (wc) wc.setZoomLevel(wc.getZoomLevel() + 0.5)
+        }
+      },
+      {
+        label: 'Zoom Out',
+        accelerator: 'CmdOrCtrl+-',
+        click: () => {
+          const wc = mainWindow?.webContents
+          if (wc) wc.setZoomLevel(wc.getZoomLevel() - 0.5)
+        }
+      },
+      { type: 'separator' },
+      { role: 'togglefullscreen' }
+    ]
+  }
+
+  const windowMenu: Electron.MenuItemConstructorOptions = {
+    label: 'Window',
+    submenu: [
+      { role: 'minimize' },
+      { role: 'zoom' },
+      { type: 'separator' },
+      { role: 'front' }
+    ]
+  }
+
+  const helpMenu: Electron.MenuItemConstructorOptions = {
+    label: 'Help',
+    submenu: [
+      {
+        label: 'Learn More',
+        click: () => shell.openExternal('https://github.com/jestersimpps/Claude-AIDE?tab=readme-ov-file')
+      }
+    ]
+  }
+
+  return [
+    ...(isMac ? [appMenu] : []),
+    fileMenu,
+    editMenu,
+    viewMenu,
+    windowMenu,
+    helpMenu
+  ]
+}
+
 app.whenReady().then(() => {
   createWindow()
+  Menu.setApplicationMenu(Menu.buildFromTemplate(buildMenu()))
 
   app.on('web-contents-created', (_event, contents) => {
     if (contents.getType() === 'webview') {

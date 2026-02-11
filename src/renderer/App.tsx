@@ -1,6 +1,8 @@
 import { useEffect } from 'react'
 import { AppLayoutGrid } from '@/components/layout/AppLayoutGrid'
 import { useThemeStore } from '@/stores/theme-store'
+import { useProjectStore } from '@/stores/project-store'
+import { useEditorStore } from '@/stores/editor-store'
 import { applyThemeToAll } from '@/components/terminal/TerminalInstance'
 
 export function App(): React.ReactElement {
@@ -20,6 +22,29 @@ export function App(): React.ReactElement {
 
     applyThemeToAll(fullThemeId)
   }, [themeName, variant])
+
+  useEffect(() => {
+    return window.api.onMenuAction((action: string) => {
+      const projectStore = useProjectStore.getState()
+      const editorStore = useEditorStore.getState()
+      const activeId = projectStore.activeProjectId
+
+      switch (action) {
+        case 'new-project':
+          projectStore.addProject()
+          break
+        case 'close-project':
+          if (activeId) projectStore.removeProject(activeId)
+          break
+        case 'center-tab-browser':
+          if (activeId) editorStore.setCenterTab(activeId, 'browser')
+          break
+        case 'center-tab-editor':
+          if (activeId) editorStore.setCenterTab(activeId, 'editor')
+          break
+      }
+    })
+  }, [])
 
   return <AppLayoutGrid />
 }
