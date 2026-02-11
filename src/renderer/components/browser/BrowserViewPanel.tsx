@@ -7,7 +7,13 @@ import { PasswordSavePrompt } from './PasswordSavePrompt'
 import { getDetectionScript, getAutoFillScript } from '@/lib/password-injection'
 import { ArrowLeft, ArrowRight, RotateCw, Plus, X, Inspect } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import type { ConsoleEntry, NetworkEntry } from '@/models/types'
+import type { ConsoleEntry, NetworkEntry, DeviceMode } from '@/models/types'
+
+const DEVICE_DIMENSIONS: Record<DeviceMode, { width: number; height: number } | null> = {
+  desktop: null,
+  ipad: { width: 1024, height: 1366 },
+  mobile: { width: 390, height: 844 }
+}
 
 function getDomain(url: string): string {
   try {
@@ -222,19 +228,19 @@ export function BrowserViewPanel(): React.ReactElement {
   return (
     <div className="flex h-full flex-col">
       <div className="flex items-center border-b border-zinc-800 bg-zinc-900/50">
-        <div className="flex flex-1 items-center gap-0.5 overflow-x-auto px-1">
+        <div className="flex flex-1 items-center gap-1 overflow-x-auto px-1.5 py-1">
           {projectTabs.map((tab) => (
             <div
               key={tab.id}
               className={cn(
-                'group flex cursor-pointer items-center gap-1.5 rounded-t-md px-3 py-1.5 text-xs',
+                'group flex cursor-pointer items-center gap-2 rounded-md px-3 py-2 text-sm transition-colors',
                 activeTabId === tab.id
-                  ? 'bg-zinc-950 text-zinc-200'
-                  : 'text-zinc-500 hover:text-zinc-400'
+                  ? 'bg-zinc-800 text-zinc-100'
+                  : 'text-zinc-500 hover:bg-zinc-800/50 hover:text-zinc-300'
               )}
               onClick={() => handleSwitchTab(tab.id)}
             >
-              <span className="max-w-[120px] truncate">
+              <span className="max-w-[150px] truncate">
                 {tab.url ? getDomain(tab.url) : 'New Tab'}
               </span>
               <button
@@ -244,7 +250,7 @@ export function BrowserViewPanel(): React.ReactElement {
                 }}
                 className="hidden rounded p-0.5 hover:text-red-400 group-hover:block"
               >
-                <X size={10} />
+                <X size={12} />
               </button>
             </div>
           ))}
@@ -252,7 +258,7 @@ export function BrowserViewPanel(): React.ReactElement {
         <button
           onClick={handleNewTab}
           disabled={!activeProjectId}
-          className="rounded p-1.5 text-zinc-500 hover:bg-zinc-800 hover:text-zinc-300 disabled:opacity-30"
+          className="mr-1 rounded p-1.5 text-zinc-500 hover:bg-zinc-800 hover:text-zinc-300 disabled:opacity-30"
         >
           <Plus size={14} />
         </button>
@@ -352,6 +358,7 @@ export function BrowserViewPanel(): React.ReactElement {
               url={tab.url}
               projectId={tab.projectId}
               isActive={tab.id === activeTabId}
+              deviceMode={tab.deviceMode}
               onSetup={setupWebview}
             />
           ))}
@@ -365,12 +372,15 @@ interface WebviewTabProps {
   url: string
   projectId: string
   isActive: boolean
+  deviceMode: DeviceMode
   onSetup: (tabId: string, webview: Electron.WebviewTag) => () => void
 }
 
-function WebviewTab({ tabId, url, projectId, isActive, onSetup }: WebviewTabProps): React.ReactElement {
+function WebviewTab({ tabId, url, projectId, isActive, deviceMode, onSetup }: WebviewTabProps): React.ReactElement {
   const webviewRef = useRef<Electron.WebviewTag>(null)
+  const containerRef = useRef<HTMLDivElement>(null)
   const initialUrl = useRef(url)
+  const [scale, setScale] = useState(1)
 
   useEffect(() => {
     const webview = webviewRef.current
@@ -378,14 +388,54 @@ function WebviewTab({ tabId, url, projectId, isActive, onSetup }: WebviewTabProp
     return onSetup(tabId, webview)
   }, [tabId])
 
+  const dims = DEVICE_DIMENSIONS[deviceMode]
+
+  useEffect(() => {
+    if (!dims || !containerRef.current) {
+      setScale(1)
+      return
+    }
+    const container = containerRef.current
+    const updateScale = (): void => {
+      const rect = container.getBoundingClientRect()
+      const padding = 32
+      const scaleX = (rect.width - padding) / dims.width
+      const scaleY = (rect.height - padding) / dims.height
+      setScale(Math.min(scaleX, scaleY, 1))
+    }
+    const observer = new ResizeObserver(updateScale)
+    observer.observe(container)
+    updateScale()
+    return () => observer.disconnect()
+  }, [deviceMode, dims])
+
   return (
-    <webview
-      ref={webviewRef}
-      src={initialUrl.current}
-      className={cn('absolute inset-0 h-full w-full', isActive ? 'z-10' : 'z-0 hidden')}
-      // @ts-expect-error webview attributes not in React types
-      allowpopups="true"
-      partition={`persist:project-${projectId}`}
-    />
+    <div
+      ref={containerRef}
+      className={cn(
+        'absolute inset-0',
+        isActive ? 'z-10' : 'z-0 hidden',
+        dims && 'flex items-center justify-center bg-zinc-950'
+      )}
+    >
+      <webview
+        ref={webviewRef}
+        src={initialUrl.current}
+        style={dims ? {
+          width: dims.width,
+          height: dims.height,
+          transform: `scale(${scale})`,
+          transformOrigin: 'center center'
+        } : undefined}
+        className={cn(
+          dims
+            ? 'rounded-lg border border-zinc-700 shadow-2xl'
+            : 'h-full w-full'
+        )}
+        // @ts-expect-error webview attributes not in React types
+        allowpopups="true"
+        partition={`persist:project-${projectId}`}
+      />
+    </div>
   )
 }
