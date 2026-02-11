@@ -227,7 +227,7 @@ export function BrowserViewPanel(): React.ReactElement {
 
   return (
     <div className="flex h-full flex-col">
-      <div className="flex items-center border-b border-zinc-800 bg-zinc-900/50">
+      <div className="relative z-20 flex items-center border-b border-zinc-800 bg-zinc-900">
         <div className="flex flex-1 items-center gap-1 overflow-x-auto px-1.5 py-1">
           {projectTabs.map((tab) => (
             <div
@@ -264,7 +264,7 @@ export function BrowserViewPanel(): React.ReactElement {
         </button>
       </div>
 
-      <div className="flex items-center gap-2 border-b border-zinc-800 bg-zinc-900/50 px-2 py-1.5">
+      <div className="relative z-20 flex items-center gap-2 border-b border-zinc-800 bg-zinc-900 px-2 py-1.5">
         <button
           onClick={() => {
             const wv = activeTabId ? webviewRefs.current.get(activeTabId) : null
