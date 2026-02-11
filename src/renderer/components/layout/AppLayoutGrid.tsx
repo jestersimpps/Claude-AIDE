@@ -1,5 +1,6 @@
 import { useEffect, useRef, useCallback, useState } from 'react'
-import { GridLayout, Layout } from 'react-grid-layout'
+import ReactGridLayout from 'react-grid-layout/legacy'
+import type { Layout } from 'react-grid-layout/legacy'
 import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels'
 import { DraggablePanel } from '@/components/layout/DraggablePanel'
 import { BrowserViewPanel } from '@/components/browser/BrowserViewPanel'
@@ -11,14 +12,15 @@ import { FileTree } from '@/components/sidebar/FileTree'
 import { CodeEditor } from '@/components/editor/CodeEditor'
 import { useEditorStore } from '@/stores/editor-store'
 import { useProjectStore } from '@/stores/project-store'
-import { useLayoutStore, panelConfigs, GRID_COLS } from '@/stores/layout-store'
+import { useLayoutStore, panelConfigs, GRID_COLS, GRID_ROWS } from '@/stores/layout-store'
 import { StatusBar } from '@/components/layout/StatusBar'
 import { Globe, Code, Plus, X, FolderOpen, RotateCcw } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import 'react-grid-layout/css/styles.css'
 import 'react-resizable/css/styles.css'
 
-const ROW_HEIGHT = 80
+const MARGIN = 6
+const CONTAINER_PADDING = 6
 
 export function AppLayoutGrid(): React.ReactElement {
   const { projects, activeProjectId, loadProjects, addProject, removeProject, setActiveProject } =
@@ -30,6 +32,7 @@ export function AppLayoutGrid(): React.ReactElement {
   const { getLayout, isLocked, saveLayout, resetLayout } = useLayoutStore()
   const containerRef = useRef<HTMLDivElement>(null)
   const [width, setWidth] = useState(0)
+  const [height, setHeight] = useState(0)
 
   const projectId = activeProjectId ?? '__default__'
   const layout = getLayout(projectId)
@@ -41,7 +44,10 @@ export function AppLayoutGrid(): React.ReactElement {
   useEffect(() => {
     if (!containerRef.current) return
     const measure = (): void => {
-      if (containerRef.current) setWidth(containerRef.current.clientWidth)
+      if (containerRef.current) {
+        setWidth(containerRef.current.clientWidth)
+        setHeight(containerRef.current.clientHeight)
+      }
     }
     measure()
     const ro = new ResizeObserver(measure)
@@ -175,15 +181,15 @@ export function AppLayoutGrid(): React.ReactElement {
         </button>
       </div>
 
-      <div ref={containerRef} className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden">
-        {width > 0 && (
-          <GridLayout
+      <div ref={containerRef} className="flex-1 min-h-0 overflow-hidden">
+        {width > 0 && height > 0 && (
+          <ReactGridLayout
             layout={gridLayout}
             cols={GRID_COLS}
-            rowHeight={ROW_HEIGHT}
+            rowHeight={(height - 2 * CONTAINER_PADDING - (GRID_ROWS - 1) * MARGIN) / GRID_ROWS}
             width={width}
-            margin={[6, 6]}
-            containerPadding={[6, 6]}
+            margin={[MARGIN, MARGIN]}
+            containerPadding={[CONTAINER_PADDING, CONTAINER_PADDING]}
             draggableHandle=".panel-drag-handle"
             compactType="vertical"
             resizeHandles={['se', 's', 'e']}
@@ -202,7 +208,7 @@ export function AppLayoutGrid(): React.ReactElement {
                 </DraggablePanel>
               </div>
             ))}
-          </GridLayout>
+          </ReactGridLayout>
         )}
       </div>
 
