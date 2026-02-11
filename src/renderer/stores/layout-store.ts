@@ -5,6 +5,7 @@ import type { Layout } from 'react-grid-layout'
 export type PanelId = 'browser-editor' | 'dev-tools' | 'dev-terminals' | 'git' | 'claude-terminals'
 
 export const GRID_COLS = 12
+export const GRID_ROWS = 12
 
 export interface PanelConfig {
   id: PanelId
@@ -20,11 +21,11 @@ export const panelConfigs: PanelConfig[] = [
 ]
 
 export const defaultLayout: Layout[] = [
-  { i: 'browser-editor', x: 0, y: 0, w: 8, h: 7, minW: 3, minH: 3 },
-  { i: 'dev-tools', x: 8, y: 0, w: 4, h: 4, minW: 3, minH: 2 },
-  { i: 'dev-terminals', x: 8, y: 4, w: 4, h: 3, minW: 3, minH: 2 },
-  { i: 'git', x: 0, y: 7, w: 5, h: 5, minW: 3, minH: 3 },
-  { i: 'claude-terminals', x: 5, y: 7, w: 7, h: 5, minW: 3, minH: 3 }
+  { i: 'browser-editor', x: 0, y: 0, w: 8, h: 7 },
+  { i: 'dev-tools', x: 8, y: 0, w: 4, h: 4 },
+  { i: 'dev-terminals', x: 8, y: 4, w: 4, h: 3 },
+  { i: 'git', x: 0, y: 7, w: 5, h: 5 },
+  { i: 'claude-terminals', x: 5, y: 7, w: 7, h: 5 }
 ]
 
 interface LayoutState {
