@@ -15,7 +15,6 @@ The editor is still there when you need to peek at something, but it's intention
 
 ## Screenshots
 
-![Editor view with file explorer, code, git graph, Claude terminal, and dev terminals](docs/screenshot-editor.png)
 
 ![Integrated browser with devtools console, Claude terminal, and dev terminals](docs/screenshot-browser.png)
 
@@ -51,3 +50,4 @@ npm run dev
 - Click files and folders in the project tree to send to Claude for easy context input
 - Give Claude access to the webview browser so it can manipulate and test the preview
 - Many more ideas
+
