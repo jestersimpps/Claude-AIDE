@@ -1,8 +1,22 @@
 import { useBrowserStore } from '@/stores/browser-store'
 import { useProjectStore } from '@/stores/project-store'
-import { Trash2 } from 'lucide-react'
+import { useTerminalStore } from '@/stores/terminal-store'
+import { getTerminalInstance } from '@/components/terminal/TerminalInstance'
+import { Trash2, Send } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { ConsoleEntry } from '@/models/types'
+
+function sendToTerminal(tabId: string, text: string): void {
+  const entry = getTerminalInstance(tabId)
+  if (!entry) return
+  entry.terminal.paste(text)
+  setTimeout(() => {
+    const textarea = entry.terminal.textarea
+    if (!textarea) return
+    textarea.focus()
+    textarea.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', code: 'Enter', keyCode: 13, bubbles: true }))
+  }, 500)
+}
 
 const levelColors: Record<string, string> = {
   log: 'text-zinc-300',
@@ -16,6 +30,9 @@ const EMPTY: ConsoleEntry[] = []
 export function ConsolePanel(): React.ReactElement {
   const activeProjectId = useProjectStore((s) => s.activeProjectId)
   const activeTabId = useBrowserStore((s) =>
+    activeProjectId ? s.activeTabPerProject[activeProjectId] : null
+  )
+  const activeTerminalTabId = useTerminalStore((s) =>
     activeProjectId ? s.activeTabPerProject[activeProjectId] : null
   )
   const consoleEntries = useBrowserStore((s) => {
@@ -46,14 +63,32 @@ export function ConsolePanel(): React.ReactElement {
             <div
               key={i}
               className={cn(
-                'border-b border-zinc-900 px-3 py-1',
+                'flex items-start justify-between border-b border-zinc-900 px-3 py-1',
                 levelColors[entry.level] || 'text-zinc-300'
               )}
             >
-              <span className="mr-2 text-zinc-600">
-                {new Date(entry.timestamp).toLocaleTimeString()}
-              </span>
-              {entry.message}
+              <div className="min-w-0 flex-1">
+                <span className="mr-2 text-zinc-600">
+                  {new Date(entry.timestamp).toLocaleTimeString()}
+                </span>
+                {entry.message}
+              </div>
+              {(entry.level === 'error' || entry.level === 'warn') && (
+                <button
+                  onClick={() =>
+                    activeTerminalTabId &&
+                    sendToTerminal(
+                      activeTerminalTabId,
+                      `I'm getting this console ${entry.level} in the browser: ${entry.message}`
+                    )
+                  }
+                  disabled={!activeTerminalTabId}
+                  className="ml-2 shrink-0 rounded p-1 text-zinc-600 hover:text-zinc-400 disabled:opacity-30 disabled:hover:text-zinc-600"
+                  title="Send to Claude"
+                >
+                  <Send size={12} />
+                </button>
+              )}
             </div>
           ))
         )}

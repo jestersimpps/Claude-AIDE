@@ -1,9 +1,23 @@
 import { useState } from 'react'
 import { useBrowserStore } from '@/stores/browser-store'
 import { useProjectStore } from '@/stores/project-store'
-import { Trash2, ChevronDown, ChevronRight } from 'lucide-react'
+import { useTerminalStore } from '@/stores/terminal-store'
+import { getTerminalInstance } from '@/components/terminal/TerminalInstance'
+import { Trash2, ChevronDown, ChevronRight, Send } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { NetworkEntry } from '@/models/types'
+
+function sendToTerminal(tabId: string, text: string): void {
+  const entry = getTerminalInstance(tabId)
+  if (!entry) return
+  entry.terminal.paste(text)
+  setTimeout(() => {
+    const textarea = entry.terminal.textarea
+    if (!textarea) return
+    textarea.focus()
+    textarea.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', code: 'Enter', keyCode: 13, bubbles: true }))
+  }, 500)
+}
 
 function formatSize(bytes: number): string {
   if (bytes === 0) return '-'
@@ -110,6 +124,9 @@ export function NetworkPanel(): React.ReactElement {
   const activeTabId = useBrowserStore((s) =>
     activeProjectId ? s.activeTabPerProject[activeProjectId] : null
   )
+  const activeTerminalTabId = useTerminalStore((s) =>
+    activeProjectId ? s.activeTabPerProject[activeProjectId] : null
+  )
   const networkEntries = useBrowserStore((s) => {
     if (!activeProjectId) return EMPTY
     const tabId = s.activeTabPerProject[activeProjectId]
@@ -134,7 +151,7 @@ export function NetworkPanel(): React.ReactElement {
         </button>
       </div>
 
-      <div className="grid grid-cols-[16px_60px_60px_1fr_70px_60px_60px] gap-x-2 border-b border-zinc-800 px-3 py-1 text-xs font-medium text-zinc-500">
+      <div className="grid grid-cols-[16px_60px_60px_1fr_70px_60px_60px_24px] gap-x-2 border-b border-zinc-800 px-3 py-1 text-xs font-medium text-zinc-500">
         <span />
         <span>Method</span>
         <span>Status</span>
@@ -142,6 +159,7 @@ export function NetworkPanel(): React.ReactElement {
         <span>Type</span>
         <span>Size</span>
         <span>Time</span>
+        <span />
       </div>
 
       <div className="flex-1 overflow-y-auto font-mono text-xs">
@@ -155,7 +173,7 @@ export function NetworkPanel(): React.ReactElement {
                 <div
                   onClick={() => setExpandedId(isExpanded ? null : entry.id)}
                   className={cn(
-                    'grid grid-cols-[16px_60px_60px_1fr_70px_60px_60px] gap-x-2 border-b border-zinc-900 px-3 py-1 cursor-pointer hover:bg-zinc-800/50',
+                    'grid grid-cols-[16px_60px_60px_1fr_70px_60px_60px_24px] gap-x-2 border-b border-zinc-900 px-3 py-1 cursor-pointer hover:bg-zinc-800/50',
                     isExpanded && 'bg-zinc-800/50'
                   )}
                 >
@@ -170,6 +188,20 @@ export function NetworkPanel(): React.ReactElement {
                   <span className="truncate text-zinc-500">{entry.type}</span>
                   <span className="text-zinc-500">{formatSize(entry.size)}</span>
                   <span className="text-zinc-500">{entry.duration.toFixed(0)}ms</span>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      if (!activeTerminalTabId) return
+                      let msg = `I'm getting a ${entry.status} ${entry.statusText} on ${entry.method} ${entry.url}`
+                      if (entry.postData) msg += `\nRequest body: ${entry.postData}`
+                      sendToTerminal(activeTerminalTabId, msg)
+                    }}
+                    disabled={!activeTerminalTabId}
+                    className="flex items-center rounded p-1 text-zinc-600 hover:text-zinc-400 disabled:opacity-30 disabled:hover:text-zinc-600"
+                    title="Send to Claude"
+                  >
+                    <Send size={12} />
+                  </button>
                 </div>
                 {isExpanded && <NetworkDetail entry={entry} />}
               </div>
