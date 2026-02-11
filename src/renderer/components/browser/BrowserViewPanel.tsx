@@ -249,6 +249,7 @@ export function BrowserViewPanel(): React.ReactElement {
                   handleCloseTab(tab.id)
                 }}
                 className="hidden rounded p-0.5 hover:text-red-400 group-hover:block"
+                title="Close tab"
               >
                 <X size={12} />
               </button>
@@ -259,6 +260,7 @@ export function BrowserViewPanel(): React.ReactElement {
           onClick={handleNewTab}
           disabled={!activeProjectId}
           className="mr-1 rounded p-1.5 text-zinc-500 hover:bg-zinc-800 hover:text-zinc-300 disabled:opacity-30"
+          title="New tab"
         >
           <Plus size={14} />
         </button>
@@ -274,6 +276,7 @@ export function BrowserViewPanel(): React.ReactElement {
           }}
           disabled={!canGoBack}
           className="rounded p-1 text-zinc-500 hover:bg-zinc-800 hover:text-zinc-300 disabled:opacity-30"
+          title="Back"
         >
           <ArrowLeft size={14} />
         </button>
@@ -286,6 +289,7 @@ export function BrowserViewPanel(): React.ReactElement {
           }}
           disabled={!canGoForward}
           className="rounded p-1 text-zinc-500 hover:bg-zinc-800 hover:text-zinc-300 disabled:opacity-30"
+          title="Forward"
         >
           <ArrowRight size={14} />
         </button>
@@ -298,6 +302,7 @@ export function BrowserViewPanel(): React.ReactElement {
           }}
           disabled={!activeTabId}
           className="rounded p-1 text-zinc-500 hover:bg-zinc-800 hover:text-zinc-300 disabled:opacity-30"
+          title="Reload"
         >
           <RotateCw size={14} />
         </button>

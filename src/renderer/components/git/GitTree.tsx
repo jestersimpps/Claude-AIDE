@@ -339,6 +339,7 @@ export function GitTree(): React.ReactElement {
               <button
                 onClick={() => { setFeatureModalOpen(false); setFeatureDescription('') }}
                 className="rounded p-0.5 text-zinc-500 hover:bg-zinc-800 hover:text-zinc-300"
+                title="Close"
               >
                 <X size={14} />
               </button>

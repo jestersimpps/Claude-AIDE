@@ -42,6 +42,7 @@ export function PasswordSavePrompt(): React.ReactElement | null {
       <button
         onClick={dismissPrompt}
         className="rounded p-0.5 text-zinc-600 hover:text-zinc-400"
+        title="Dismiss"
       >
         <X size={12} />
       </button>

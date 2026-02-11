@@ -111,6 +111,7 @@ export function DevTerminalsPanel(): React.ReactElement {
                                 onClick={() => handleClose(tab.id)}
                                 className="rounded p-0.5 text-zinc-600 hover:text-red-400"
                                 disabled={pTabs.length <= 1}
+                                title="Close terminal"
                               >
                                 <X size={10} />
                               </button>

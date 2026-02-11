@@ -46,6 +46,7 @@ export function StatusBar(): React.ReactElement {
         <button
           onClick={toggleTheme}
           className="flex shrink-0 items-center gap-1.5 rounded px-1.5 py-0.5 transition-colors hover:bg-zinc-800 hover:text-zinc-200"
+          title="Toggle theme"
         >
           {theme === 'dark' ? <Sun size={13} /> : <Moon size={13} />}
           <span>{theme === 'dark' ? 'Light' : 'Dark'}</span>

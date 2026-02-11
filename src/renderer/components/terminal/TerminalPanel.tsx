@@ -105,6 +105,7 @@ export function TerminalPanel(): React.ReactElement {
                   handleCloseTab(tab.id)
                 }}
                 className="hidden rounded p-0.5 hover:text-red-400 group-hover:block"
+                title="Close tab"
               >
                 <X size={10} />
               </button>
@@ -115,6 +116,7 @@ export function TerminalPanel(): React.ReactElement {
           onClick={handleNewTab}
           disabled={!activeProject}
           className="rounded p-1.5 text-zinc-500 hover:bg-zinc-800 hover:text-zinc-300 disabled:opacity-30"
+          title="New tab"
         >
           <Plus size={14} />
         </button>

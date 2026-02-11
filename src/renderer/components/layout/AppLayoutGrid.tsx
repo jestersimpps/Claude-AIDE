@@ -168,6 +168,7 @@ export function AppLayoutGrid(): React.ReactElement {
           <button
             onClick={addProject}
             className="flex items-center justify-center h-full px-2 text-zinc-500 hover:text-zinc-300 transition-colors"
+            title="Add project"
           >
             <Plus size={14} />
           </button>

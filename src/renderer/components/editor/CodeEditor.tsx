@@ -72,6 +72,7 @@ export function CodeEditor({ projectId }: { projectId: string }): React.ReactEle
             <span className="truncate max-w-[120px]">{file.name}</span>
             <button
               className="ml-1 rounded p-0.5 opacity-0 group-hover:opacity-100 hover:bg-zinc-700"
+              title="Close file"
               onClick={(e) => {
                 e.stopPropagation()
                 closeFile(projectId, file.path)
