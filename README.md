@@ -13,12 +13,9 @@ VibeCoder flips that — terminals and browser previews take the main stage, bec
 
 The editor is still there when you need to peek at something, but it's intentionally secondary
 
-## Screenshots
+## Screenshot
 
-
-![Integrated browser with devtools console, Claude terminal, and dev terminals](docs/screenshot-browser.png)
-
-![Light mode on superultrawide with network panel, browser preview, and Claude terminal](docs/screenshot-light-ultrawide.png)
+![Browser preview, devtools, git graph, Claude terminal, and dev terminals](docs/screenshot-browser.png)
 
 ## Features
 
