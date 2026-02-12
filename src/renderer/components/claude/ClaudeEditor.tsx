@@ -69,9 +69,11 @@ export function ClaudeEditor({ projectId }: { projectId: string }): React.ReactE
     <div className="flex h-full flex-col bg-zinc-950">
       <div className="flex items-center border-b border-zinc-800 bg-zinc-900/50 px-3 py-1.5">
         <span className="text-xs text-zinc-400 truncate">{filename}</span>
-        {showSaved && (
-          <span className="ml-2 text-[10px] text-emerald-400 animate-fade-in">Saved</span>
-        )}
+        <span
+          className={`ml-2 text-[10px] text-emerald-400 transition-opacity duration-300 ${showSaved ? 'opacity-100' : 'opacity-0'}`}
+        >
+          Saved
+        </span>
       </div>
       <div className="flex-1">
         <Editor
