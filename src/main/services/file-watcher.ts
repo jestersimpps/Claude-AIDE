@@ -5,6 +5,23 @@ import path from 'path'
 import ignore, { type Ignore } from 'ignore'
 import type { FileNode } from '@main/models/types'
 
+const IMAGE_EXTS = new Set(['png', 'jpg', 'jpeg', 'gif', 'webp', 'ico', 'bmp', 'avif'])
+const BINARY_EXTS = new Set([
+  ...IMAGE_EXTS, 'svg',
+  'woff', 'woff2', 'ttf', 'eot', 'otf',
+  'pdf', 'zip', 'tar', 'gz',
+  'mp3', 'mp4', 'mov', 'avi', 'wav'
+])
+
+export interface FileReadResult {
+  content: string
+  isBinary: boolean
+}
+
+function getExt(filePath: string): string {
+  return path.extname(filePath).slice(1).toLowerCase()
+}
+
 let watcher: FSWatcher | null = null
 let currentRoot: string | null = null
 const fileDebounce = new Map<string, NodeJS.Timeout>()
@@ -89,6 +106,7 @@ export function startWatching(rootPath: string, win: BrowserWindow): void {
     win.webContents.send('fs:tree-changed', tree)
 
     if (event === 'change') {
+      if (BINARY_EXTS.has(getExt(filePath))) return
       const existing = fileDebounce.get(filePath)
       if (existing) clearTimeout(existing)
       fileDebounce.set(
@@ -108,8 +126,18 @@ export function startWatching(rootPath: string, win: BrowserWindow): void {
   })
 }
 
-export function readFileContents(filePath: string): string {
-  return fs.readFileSync(filePath, 'utf-8')
+export function readFileContents(filePath: string): FileReadResult {
+  const ext = getExt(filePath)
+  if (IMAGE_EXTS.has(ext)) {
+    return { content: fs.readFileSync(filePath).toString('base64'), isBinary: true }
+  }
+  if (ext === 'svg') {
+    return { content: fs.readFileSync(filePath, 'utf-8'), isBinary: true }
+  }
+  if (BINARY_EXTS.has(ext)) {
+    return { content: '', isBinary: true }
+  }
+  return { content: fs.readFileSync(filePath, 'utf-8'), isBinary: false }
 }
 
 export function stopWatching(): void {

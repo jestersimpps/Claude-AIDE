@@ -85,6 +85,7 @@ export interface OpenFile {
   name: string
   content: string
   originalContent?: string | null
+  isBinary?: boolean
 }
 
 export interface SavedCredential {

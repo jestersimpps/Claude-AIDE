@@ -43,9 +43,9 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
       }))
       return
     }
-    const content = await window.api.fs.readFile(path)
+    const { content, isBinary } = await window.api.fs.readFile(path)
 
-    const needsOriginal = cwd && gitStatus && ['modified', 'deleted', 'renamed', 'conflict'].includes(gitStatus)
+    const needsOriginal = !isBinary && cwd && gitStatus && ['modified', 'deleted', 'renamed', 'conflict'].includes(gitStatus)
     const originalContent = needsOriginal ? await window.api.git.fileAtHead(cwd, path) : undefined
 
     set((s) => {
@@ -54,7 +54,7 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
         statePerProject: {
           ...s.statePerProject,
           [projectId]: {
-            openFiles: [...prev.openFiles, { path, name, content, originalContent }],
+            openFiles: [...prev.openFiles, { path, name, content, originalContent, isBinary }],
             activeFilePath: path
           }
         },

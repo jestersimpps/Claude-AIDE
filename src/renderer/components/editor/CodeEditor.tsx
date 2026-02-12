@@ -3,7 +3,7 @@ import Editor, { DiffEditor, type Monaco } from '@monaco-editor/react'
 import { useEditorStore } from '@/stores/editor-store'
 import { useThemeStore } from '@/stores/theme-store'
 import { registerMonacoThemes, MONACO_THEME_NAME } from '@/config/monaco-theme-registry'
-import { X } from 'lucide-react'
+import { X, FileWarning } from 'lucide-react'
 import type { OpenFile } from '@/models/types'
 
 const EXT_LANG: Record<string, string> = {
@@ -31,9 +31,62 @@ const EXT_LANG: Record<string, string> = {
   graphql: 'graphql'
 }
 
+const IMAGE_EXTS = new Set(['png', 'jpg', 'jpeg', 'gif', 'webp', 'ico', 'bmp', 'avif'])
+
+const MIME_MAP: Record<string, string> = {
+  png: 'image/png',
+  jpg: 'image/jpeg',
+  jpeg: 'image/jpeg',
+  gif: 'image/gif',
+  webp: 'image/webp',
+  ico: 'image/x-icon',
+  bmp: 'image/bmp',
+  avif: 'image/avif'
+}
+
 function detectLanguage(filename: string): string {
   const ext = filename.split('.').pop()?.toLowerCase() ?? ''
   return EXT_LANG[ext] ?? 'plaintext'
+}
+
+function getFileExt(filename: string): string {
+  return filename.split('.').pop()?.toLowerCase() ?? ''
+}
+
+function BinaryPreview({ file }: { file: OpenFile }): React.ReactElement {
+  const ext = getFileExt(file.name)
+
+  if (ext === 'svg') {
+    return (
+      <div className="flex h-full items-center justify-center bg-zinc-950 p-8">
+        <img
+          src={`data:image/svg+xml;utf8,${encodeURIComponent(file.content)}`}
+          alt={file.name}
+          className="max-h-full max-w-full object-contain"
+        />
+      </div>
+    )
+  }
+
+  if (IMAGE_EXTS.has(ext)) {
+    const mime = MIME_MAP[ext] ?? 'image/png'
+    return (
+      <div className="flex h-full items-center justify-center bg-zinc-950 p-8">
+        <img
+          src={`data:${mime};base64,${file.content}`}
+          alt={file.name}
+          className="max-h-full max-w-full object-contain"
+        />
+      </div>
+    )
+  }
+
+  return (
+    <div className="flex h-full flex-col items-center justify-center gap-3 text-zinc-500">
+      <FileWarning size={48} strokeWidth={1} />
+      <span className="text-sm">Binary file — cannot display</span>
+    </div>
+  )
 }
 
 function handleBeforeMount(monaco: Monaco): void {
@@ -88,7 +141,9 @@ export function CodeEditor({ projectId }: { projectId: string }): React.ReactEle
 
       <div className="flex-1">
         {activeFile ? (
-          typeof activeFile.originalContent === 'string' ? (
+          activeFile.isBinary ? (
+            <BinaryPreview file={activeFile} />
+          ) : typeof activeFile.originalContent === 'string' ? (
             <DiffEditor
               key={`diff-${activeFile.path}`}
               original={activeFile.originalContent}
