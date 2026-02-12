@@ -43,6 +43,15 @@ export function TerminalInstance({ tabId, projectId, cwd, initialCommand }: Term
     if (!el) return
 
     let entry = terminalsMap.get(tabId)
+    let isReconnect = false
+
+    if (entry && !document.body.contains(entry.terminal.element)) {
+      entry.unsubData?.()
+      try { entry.terminal.dispose() } catch { /* WebGL addon may throw */ }
+      terminalsMap.delete(tabId)
+      entry = undefined
+      isReconnect = true
+    }
 
     if (!entry) {
       const terminal = new Terminal({
@@ -109,11 +118,15 @@ export function TerminalInstance({ tabId, projectId, cwd, initialCommand }: Term
         fitAddon.fit()
         terminal.scrollToBottom()
         terminal.focus()
-        window.api.terminal.create(tabId, projectId, cwd, terminal.cols, terminal.rows)
-        if (initialCommand) {
-          setTimeout(() => {
-            window.api.terminal.write(tabId, initialCommand + '\n')
-          }, 500)
+        if (isReconnect) {
+          window.api.terminal.resize(tabId, terminal.cols, terminal.rows)
+        } else {
+          window.api.terminal.create(tabId, projectId, cwd, terminal.cols, terminal.rows)
+          if (initialCommand) {
+            setTimeout(() => {
+              window.api.terminal.write(tabId, initialCommand + '\n')
+            }, 500)
+          }
         }
       }, 200)
     }

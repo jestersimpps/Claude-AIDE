@@ -6,9 +6,11 @@ import { registerTerminalHandlers } from '@main/ipc/terminal'
 import { registerBrowserHandlers } from '@main/ipc/browser'
 import { registerGitHandlers } from '@main/ipc/git'
 import { registerPasswordHandlers } from '@main/ipc/passwords'
-import { killAll } from '@main/services/pty-manager'
+import { killAll, killOrphanedPtys } from '@main/services/pty-manager'
 import { stopWatching } from '@main/services/file-watcher'
 import { detachAllTabs } from '@main/services/browser-view'
+
+app.setName('vbcdr')
 
 const CHROME_USER_AGENT =
   'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/132.0.0.0 Safari/537.36'
@@ -211,6 +213,7 @@ function buildMenu(): Electron.MenuItemConstructorOptions[] {
 }
 
 app.whenReady().then(() => {
+  killOrphanedPtys()
   createWindow()
   Menu.setApplicationMenu(Menu.buildFromTemplate(buildMenu()))
 

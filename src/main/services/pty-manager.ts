@@ -100,3 +100,18 @@ export function killAll(): void {
   }
   instances.clear()
 }
+
+export function killOrphanedPtys(): void {
+  try {
+    const output = execSync('ps eww -ax -o pid,ppid,command', { encoding: 'utf-8' })
+    for (const line of output.split('\n')) {
+      if (!line.includes('TERM_PROGRAM=vbcdr')) continue
+      const parts = line.trim().split(/\s+/)
+      const pid = parseInt(parts[0], 10)
+      const ppid = parseInt(parts[1], 10)
+      if (ppid === 1 && !isNaN(pid)) {
+        try { process.kill(pid, 'SIGTERM') } catch { /* already dead */ }
+      }
+    }
+  } catch { /* grep returns non-zero when no matches */ }
+}
