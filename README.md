@@ -48,7 +48,8 @@ npm run dev
 
 ## Still on the roadmap
 
-- One-button collapse for dev terminal and console to maximize browser preview
+- **Visual Claude skills manager** — browse, enable/disable, and configure Claude Code skills and slash commands from a dedicated UI panel instead of managing config files manually
+- **Password & browser favorites overhaul** — the current password storage and browser favorites system needs a redesign for better UX and reliability
 - Click files and folders in the project tree to send to Claude for easy context input
 - Give Claude access to the webview browser so it can manipulate and test the preview
 - Many more ideas
