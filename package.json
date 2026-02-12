@@ -2,6 +2,10 @@
   "name": "vbcdr",
   "version": "1.0.0",
   "description": "Desktop vibe coding environment for Claude Code developers",
+  "author": {
+    "name": "jo vinkenroye",
+    "email": "jov2all@gmail.com"
+  },
   "main": "./out/main/index.js",
   "scripts": {
     "dev": "electron-vite dev",
