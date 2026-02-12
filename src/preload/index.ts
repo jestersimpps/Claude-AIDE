@@ -89,7 +89,25 @@ const api = {
       projectId: string,
       tabs: { id: string; url: string; deviceMode: string; title: string }[],
       activeTabId: string
-    ) => ipcRenderer.invoke('browser:save-tabs', projectId, tabs, activeTabId)
+    ) => ipcRenderer.invoke('browser:save-tabs', projectId, tabs, activeTabId),
+    addHistory: (projectId: string, url: string, title: string) =>
+      ipcRenderer.invoke('browser:add-history', projectId, url, title),
+    getHistory: (projectId: string) =>
+      ipcRenderer.invoke('browser:get-history', projectId),
+    clearHistory: (projectId: string) =>
+      ipcRenderer.invoke('browser:clear-history', projectId),
+    addBookmark: (projectId: string, url: string, title: string) =>
+      ipcRenderer.invoke('browser:add-bookmark', projectId, url, title),
+    removeBookmark: (projectId: string, bookmarkId: string) =>
+      ipcRenderer.invoke('browser:remove-bookmark', projectId, bookmarkId),
+    getBookmarks: (projectId: string) =>
+      ipcRenderer.invoke('browser:get-bookmarks', projectId),
+    getResponseBody: (tabId: string, requestId: string) =>
+      ipcRenderer.invoke('browser:get-response-body', tabId, requestId),
+    captureHtml: (tabId: string) =>
+      ipcRenderer.invoke('browser:capture-html', tabId),
+    captureScreenshot: (tabId: string) =>
+      ipcRenderer.invoke('browser:capture-screenshot', tabId)
   },
 
   onMenuAction: (callback: (action: string) => void) => {

@@ -1,4 +1,6 @@
-import { webContents, BrowserWindow } from 'electron'
+import { webContents, BrowserWindow, app } from 'electron'
+import path from 'path'
+import fs from 'fs'
 import { DEVICE_CONFIGS, type DeviceMode, type NetworkEntry } from '@main/models/types'
 
 interface PendingRequest {
@@ -146,6 +148,36 @@ export function detachTab(tabId: string): void {
     }
   }
   trackedTabs.delete(tabId)
+}
+
+export async function getResponseBody(tabId: string, requestId: string): Promise<{ body: string; base64Encoded: boolean }> {
+  const entry = trackedTabs.get(tabId)
+  if (!entry) throw new Error('Tab not tracked')
+  const wc = webContents.fromId(entry.webContentsId)
+  if (!wc || !wc.debugger.isAttached()) throw new Error('Debugger not attached')
+  const result = await wc.debugger.sendCommand('Network.getResponseBody', { requestId })
+  return { body: result.body, base64Encoded: result.base64Encoded }
+}
+
+export async function capturePageHtml(tabId: string): Promise<string> {
+  const entry = trackedTabs.get(tabId)
+  if (!entry) throw new Error('Tab not tracked')
+  const wc = webContents.fromId(entry.webContentsId)
+  if (!wc) throw new Error('WebContents not found')
+  return await wc.executeJavaScript('document.documentElement.outerHTML')
+}
+
+export async function capturePageScreenshot(tabId: string): Promise<string> {
+  const entry = trackedTabs.get(tabId)
+  if (!entry) throw new Error('Tab not tracked')
+  const wc = webContents.fromId(entry.webContentsId)
+  if (!wc) throw new Error('WebContents not found')
+  const image = await wc.capturePage()
+  const png = image.toPNG()
+  const tmpDir = app.getPath('temp')
+  const filePath = path.join(tmpDir, `vc-screenshot-${Date.now()}.png`)
+  fs.writeFileSync(filePath, png)
+  return filePath
 }
 
 export function detachAllTabs(): void {

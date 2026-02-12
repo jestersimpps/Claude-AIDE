@@ -1,7 +1,9 @@
 import { ipcMain, BrowserWindow, webContents } from 'electron'
-import { attachTab, setDevice, detachTab } from '@main/services/browser-view'
+import { attachTab, setDevice, detachTab, getResponseBody, capturePageHtml, capturePageScreenshot } from '@main/services/browser-view'
 import { loadProjectTabs, saveProjectTabs } from '@main/services/browser-persistence'
-import type { DeviceMode } from '@main/models/types'
+import { addHistoryEntry, getHistory, clearHistory } from '@main/services/browser-history'
+import { addBookmark, removeBookmark, getBookmarks } from '@main/services/browser-bookmarks'
+import type { DeviceMode, HistoryEntry, Bookmark } from '@main/models/types'
 
 export function registerBrowserHandlers(): void {
   ipcMain.handle('browser:attach', (event, tabId: string, webContentsId: number): void => {
@@ -35,4 +37,40 @@ export function registerBrowserHandlers(): void {
       saveProjectTabs(projectId, tabs, activeTabId)
     }
   )
+
+  ipcMain.handle('browser:add-history', (_event, projectId: string, url: string, title: string): void => {
+    addHistoryEntry(projectId, url, title)
+  })
+
+  ipcMain.handle('browser:get-history', (_event, projectId: string): HistoryEntry[] => {
+    return getHistory(projectId)
+  })
+
+  ipcMain.handle('browser:clear-history', (_event, projectId: string): void => {
+    clearHistory(projectId)
+  })
+
+  ipcMain.handle('browser:add-bookmark', (_event, projectId: string, url: string, title: string): Bookmark => {
+    return addBookmark(projectId, url, title)
+  })
+
+  ipcMain.handle('browser:remove-bookmark', (_event, projectId: string, bookmarkId: string): void => {
+    removeBookmark(projectId, bookmarkId)
+  })
+
+  ipcMain.handle('browser:get-bookmarks', (_event, projectId: string): Bookmark[] => {
+    return getBookmarks(projectId)
+  })
+
+  ipcMain.handle('browser:get-response-body', (_event, tabId: string, requestId: string): Promise<{ body: string; base64Encoded: boolean }> => {
+    return getResponseBody(tabId, requestId)
+  })
+
+  ipcMain.handle('browser:capture-html', (_event, tabId: string): Promise<string> => {
+    return capturePageHtml(tabId)
+  })
+
+  ipcMain.handle('browser:capture-screenshot', (_event, tabId: string): Promise<string> => {
+    return capturePageScreenshot(tabId)
+  })
 }

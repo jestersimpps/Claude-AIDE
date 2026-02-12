@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react'
+import { useState, useRef, useCallback, useEffect } from 'react'
 import { useBrowserStore } from '@/stores/browser-store'
 import { useProjectStore } from '@/stores/project-store'
 import { useTerminalStore } from '@/stores/terminal-store'
@@ -36,13 +36,73 @@ function HeadersTable({ headers }: { headers: Record<string, string> }): React.R
   )
 }
 
-function NetworkDetail({ entry }: { entry: NetworkEntry }): React.ReactElement {
-  const [activeTab, setActiveTab] = useState<'general' | 'request' | 'response'>('general')
+function ResponseBody({ entry }: { entry: NetworkEntry }): React.ReactElement {
+  const [body, setBody] = useState<string | null>(null)
+  const [isBase64, setIsBase64] = useState(false)
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const cacheRef = useRef<Map<string, { body: string; base64Encoded: boolean }>>(new Map())
 
-  const tabs: { key: typeof activeTab; label: string }[] = [
+  const fetchBody = useCallback(async () => {
+    const cached = cacheRef.current.get(entry.id)
+    if (cached) {
+      setBody(cached.body)
+      setIsBase64(cached.base64Encoded)
+      return
+    }
+    setLoading(true)
+    setError(null)
+    try {
+      const result = await window.api.browser.getResponseBody(
+        useBrowserStore.getState().tabs.find((t) => t.networkEntries.some((n) => n.id === entry.id))?.id ?? '',
+        entry.id
+      )
+      cacheRef.current.set(entry.id, result)
+      setBody(result.body)
+      setIsBase64(result.base64Encoded)
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to load response body')
+    } finally {
+      setLoading(false)
+    }
+  }, [entry.id])
+
+  useEffect(() => { fetchBody() }, [fetchBody])
+
+  if (loading) return <span className="text-zinc-500">Loading...</span>
+  if (error) return <span className="text-red-400">{error}</span>
+  if (body === null) return <span className="text-zinc-600">No body</span>
+
+  const mime = entry.mimeType || ''
+
+  if (mime.startsWith('image/')) {
+    const src = isBase64 ? `data:${mime};base64,${body}` : `data:${mime};base64,${btoa(body)}`
+    return <img src={src} className="max-h-48 max-w-full object-contain" alt="Response" />
+  }
+
+  if (mime.includes('json')) {
+    let formatted = body
+    try { formatted = JSON.stringify(JSON.parse(body), null, 2) } catch {}
+    return <pre className="text-zinc-300 whitespace-pre-wrap break-all select-text font-mono">{formatted}</pre>
+  }
+
+  if (mime.startsWith('text/') || mime.includes('javascript') || mime.includes('xml') || mime.includes('html')) {
+    return <pre className="text-zinc-300 whitespace-pre-wrap break-all select-text font-mono">{body}</pre>
+  }
+
+  return <span className="text-zinc-500">Binary content ({formatSize(entry.size)})</span>
+}
+
+type DetailTab = 'general' | 'request' | 'response' | 'body'
+
+function NetworkDetail({ entry }: { entry: NetworkEntry }): React.ReactElement {
+  const [activeTab, setActiveTab] = useState<DetailTab>('general')
+
+  const tabs: { key: DetailTab; label: string }[] = [
     { key: 'general', label: 'General' },
     { key: 'request', label: 'Request Headers' },
-    { key: 'response', label: 'Response Headers' }
+    { key: 'response', label: 'Response Headers' },
+    { key: 'body', label: 'Response Body' }
   ]
 
   return (
@@ -99,6 +159,7 @@ function NetworkDetail({ entry }: { entry: NetworkEntry }): React.ReactElement {
         )}
         {activeTab === 'request' && <HeadersTable headers={entry.requestHeaders} />}
         {activeTab === 'response' && <HeadersTable headers={entry.responseHeaders} />}
+        {activeTab === 'body' && <ResponseBody entry={entry} />}
       </div>
     </div>
   )
