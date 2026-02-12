@@ -1,5 +1,7 @@
 # vbcdr — the first AIDE
 
+[![Build](https://github.com/jestersimpps/vbcdr-electron/actions/workflows/build.yml/badge.svg)](https://github.com/jestersimpps/vbcdr-electron/actions/workflows/build.yml)
+
 **An AIDE for developers who vibe**
 
 A desktop environment built around terminal AI agents, not traditional code editing
