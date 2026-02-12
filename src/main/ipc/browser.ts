@@ -1,5 +1,5 @@
 import { ipcMain, BrowserWindow, webContents } from 'electron'
-import { attachTab, setDevice, detachTab, getResponseBody, capturePageHtml, capturePageScreenshot } from '@main/services/browser-view'
+import { attachTab, setDevice, detachTab, clearBodyCache, getResponseBody, capturePageHtml, capturePageScreenshot } from '@main/services/browser-view'
 import { loadProjectTabs, saveProjectTabs } from '@main/services/browser-persistence'
 import { addHistoryEntry, getHistory, clearHistory } from '@main/services/browser-history'
 import { addBookmark, removeBookmark, getBookmarks } from '@main/services/browser-bookmarks'
@@ -60,6 +60,10 @@ export function registerBrowserHandlers(): void {
 
   ipcMain.handle('browser:get-bookmarks', (_event, projectId: string): Bookmark[] => {
     return getBookmarks(projectId)
+  })
+
+  ipcMain.handle('browser:clear-body-cache', (_event, tabId: string): void => {
+    clearBodyCache(tabId)
   })
 
   ipcMain.handle('browser:get-response-body', (_event, tabId: string, requestId: string): Promise<{ body: string; base64Encoded: boolean }> => {

@@ -102,6 +102,8 @@ const api = {
       ipcRenderer.invoke('browser:remove-bookmark', projectId, bookmarkId),
     getBookmarks: (projectId: string) =>
       ipcRenderer.invoke('browser:get-bookmarks', projectId),
+    clearBodyCache: (tabId: string) =>
+      ipcRenderer.invoke('browser:clear-body-cache', tabId),
     getResponseBody: (tabId: string, requestId: string) =>
       ipcRenderer.invoke('browser:get-response-body', tabId, requestId),
     captureHtml: (tabId: string) =>

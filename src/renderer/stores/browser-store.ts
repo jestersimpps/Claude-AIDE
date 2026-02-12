@@ -149,6 +149,7 @@ export const useBrowserStore = create<BrowserStore>((set, get) => ({
     set((state) => ({
       tabs: state.tabs.map((t) => (t.id === tabId ? { ...t, networkEntries: [] } : t))
     }))
+    window.api.browser.clearBodyCache(tabId)
   },
 
   setZoomLevel: (tabId: string, level: number) => {

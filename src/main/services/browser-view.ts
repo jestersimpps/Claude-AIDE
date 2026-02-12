@@ -23,10 +23,16 @@ interface ResponseData {
   duration: number
 }
 
+interface CachedBody {
+  body: string
+  base64Encoded: boolean
+}
+
 interface TrackedTab {
   webContentsId: number
   pendingRequests: Map<string, PendingRequest>
   pendingResponses: Map<string, ResponseData>
+  bodyCache: Map<string, CachedBody>
 }
 
 const trackedTabs = new Map<string, TrackedTab>()
@@ -39,8 +45,9 @@ export function attachTab(tabId: string, webContentsId: number, win: BrowserWind
 
   const pendingRequests = new Map<string, PendingRequest>()
   const pendingResponses = new Map<string, ResponseData>()
+  const bodyCache = new Map<string, CachedBody>()
 
-  trackedTabs.set(tabId, { webContentsId, pendingRequests, pendingResponses })
+  trackedTabs.set(tabId, { webContentsId, pendingRequests, pendingResponses, bodyCache })
 
   try {
     wc.debugger.attach('1.3')
@@ -50,7 +57,7 @@ export function attachTab(tabId: string, webContentsId: number, win: BrowserWind
 
   wc.debugger.sendCommand('Network.enable')
 
-  wc.debugger.on('message', (_event, method, params) => {
+  wc.debugger.on('message', async (_event, method, params) => {
     if (win.isDestroyed()) return
 
     if (method === 'Network.requestWillBeSent') {
@@ -106,6 +113,15 @@ export function attachTab(tabId: string, webContentsId: number, win: BrowserWind
         }
         win.webContents.send('browser:network', tabId, networkEntry)
         pendingResponses.delete(params.requestId)
+
+        try {
+          const result = await wc.debugger.sendCommand('Network.getResponseBody', { requestId: params.requestId })
+          if (bodyCache.size >= 500) {
+            const oldest = bodyCache.keys().next().value!
+            bodyCache.delete(oldest)
+          }
+          bodyCache.set(params.requestId, { body: result.body, base64Encoded: result.base64Encoded })
+        } catch { /* body may not be available for some requests */ }
       }
     }
   })
@@ -135,6 +151,11 @@ export function setDevice(tabId: string, mode: DeviceMode): void {
   }
 }
 
+export function clearBodyCache(tabId: string): void {
+  const entry = trackedTabs.get(tabId)
+  if (entry) entry.bodyCache.clear()
+}
+
 export function detachTab(tabId: string): void {
   const entry = trackedTabs.get(tabId)
   if (entry) {
@@ -153,10 +174,16 @@ export function detachTab(tabId: string): void {
 export async function getResponseBody(tabId: string, requestId: string): Promise<{ body: string; base64Encoded: boolean }> {
   const entry = trackedTabs.get(tabId)
   if (!entry) throw new Error('Tab not tracked')
+
+  const cached = entry.bodyCache.get(requestId)
+  if (cached) return cached
+
   const wc = webContents.fromId(entry.webContentsId)
   if (!wc || !wc.debugger.isAttached()) throw new Error('Debugger not attached')
   const result = await wc.debugger.sendCommand('Network.getResponseBody', { requestId })
-  return { body: result.body, base64Encoded: result.base64Encoded }
+  const body = { body: result.body, base64Encoded: result.base64Encoded }
+  entry.bodyCache.set(requestId, body)
+  return body
 }
 
 export async function capturePageHtml(tabId: string): Promise<string> {
