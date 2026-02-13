@@ -1,8 +1,10 @@
 import { useEffect } from 'react'
 import { AppLayoutGrid } from '@/components/layout/AppLayoutGrid'
+import { UpdateBanner } from '@/components/layout/UpdateBanner'
 import { useThemeStore } from '@/stores/theme-store'
 import { useProjectStore } from '@/stores/project-store'
 import { useEditorStore } from '@/stores/editor-store'
+import { useUpdaterStore } from '@/stores/updater-store'
 import { applyThemeToAll } from '@/components/terminal/TerminalInstance'
 
 export function App(): React.ReactElement {
@@ -22,6 +24,10 @@ export function App(): React.ReactElement {
 
     applyThemeToAll(fullThemeId)
   }, [themeName, variant])
+
+  useEffect(() => {
+    return useUpdaterStore.getState().init()
+  }, [])
 
   useEffect(() => {
     return window.api.onMenuAction((action: string) => {
@@ -49,5 +55,10 @@ export function App(): React.ReactElement {
     })
   }, [])
 
-  return <AppLayoutGrid />
+  return (
+    <>
+      <UpdateBanner />
+      <AppLayoutGrid />
+    </>
+  )
 }

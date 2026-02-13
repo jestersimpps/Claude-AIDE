@@ -10,8 +10,18 @@ import { registerClaudeConfigHandlers } from '@main/ipc/claude-config'
 import { killAll, killOrphanedPtys } from '@main/services/pty-manager'
 import { stopWatching } from '@main/services/file-watcher'
 import { detachAllTabs } from '@main/services/browser-view'
+import { registerUpdaterHandlers } from '@main/ipc/updater'
+import { initAutoUpdater, checkForUpdates, checkForUpdatesInteractive } from '@main/services/auto-updater'
 
 app.setName('vbcdr')
+app.setAboutPanelOptions({
+  applicationName: 'vbcdr',
+  applicationVersion: app.getVersion(),
+  version: '',
+  copyright: '© 2025 Jo Vinkenroye',
+  credits: 'A desktop vibe coding environment for Claude Code developers.\nTerminal, browser, editor, and git — all in one window.',
+  iconPath: path.join(__dirname, '../../resources/icon.png')
+})
 
 const CHROME_USER_AGENT =
   'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/132.0.0.0 Safari/537.36'
@@ -74,6 +84,7 @@ registerBrowserHandlers()
 registerGitHandlers()
 registerPasswordHandlers()
 registerClaudeConfigHandlers()
+registerUpdaterHandlers()
 
 function buildMenu(): Electron.MenuItemConstructorOptions[] {
   const isMac = process.platform === 'darwin'
@@ -87,6 +98,10 @@ function buildMenu(): Electron.MenuItemConstructorOptions[] {
         label: 'Settings...',
         accelerator: 'CmdOrCtrl+,',
         click: () => mainWindow?.webContents.send('menu:action', 'settings')
+      },
+      {
+        label: 'Check for Updates...',
+        click: () => checkForUpdatesInteractive()
       },
       { type: 'separator' },
       { role: 'hide', label: 'Hide vbcdr' },
@@ -224,6 +239,11 @@ app.whenReady().then(() => {
   killOrphanedPtys()
   createWindow()
   Menu.setApplicationMenu(Menu.buildFromTemplate(buildMenu()))
+
+  initAutoUpdater()
+  if (!process.env.ELECTRON_RENDERER_URL) {
+    setTimeout(() => checkForUpdates(), 5000)
+  }
 
   app.on('web-contents-created', (_event, contents) => {
     if (contents.getType() === 'webview') {

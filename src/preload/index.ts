@@ -118,6 +118,17 @@ const api = {
     return () => ipcRenderer.removeListener('menu:action', handler)
   },
 
+  updater: {
+    check: () => ipcRenderer.invoke('updater:check'),
+    install: () => ipcRenderer.invoke('updater:install'),
+    getStatus: () => ipcRenderer.invoke('updater:status'),
+    onStatus: (callback: (status: unknown) => void) => {
+      const handler = (_event: Electron.IpcRendererEvent, status: unknown) => callback(status)
+      ipcRenderer.on('updater:status', handler)
+      return () => ipcRenderer.removeListener('updater:status', handler)
+    }
+  },
+
   passwords: {
     save: (projectId: string, domain: string, username: string, password: string) =>
       ipcRenderer.invoke('passwords:save', projectId, domain, username, password),

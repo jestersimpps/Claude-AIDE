@@ -19,6 +19,11 @@
   "build": {
     "appId": "com.vbcdr.app",
     "productName": "vbcdr",
+    "publish": {
+      "provider": "github",
+      "owner": "jestersimpps",
+      "repo": "vbcdr-electron"
+    },
     "directories": {
       "output": "dist"
     },
@@ -35,7 +40,8 @@
       "entitlements": "resources/entitlements.mac.plist",
       "entitlementsInherit": "resources/entitlements.mac.plist",
       "target": [
-        "dmg"
+        "dmg",
+        "zip"
       ],
       "notarize": true
     },
@@ -88,6 +94,7 @@
     "@xterm/xterm": "^5.5.0",
     "chokidar": "^4.0.3",
     "electron-store": "^8.2.0",
+    "electron-updater": "^6.7.3",
     "ignore": "^7.0.3",
     "node-pty": "^1.0.0",
     "react": "^18.3.1",
